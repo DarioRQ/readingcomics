@@ -96,7 +96,7 @@ export const Logo = ({ size = 18 }: IconProps) => (
     {/* Viñetas de la página derecha */}
     <path
       d="M14.6 8.2h3.1M14.6 11h3.1"
-      stroke="var(--bg, #0e0f14)"
+      stroke="var(--bg, #15130f)"
       strokeWidth="1.1"
       strokeLinecap="round"
     />
@@ -217,5 +217,23 @@ export const DownloadIcon = (props: IconProps) => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
+  </UiIcon>
+);
+
+/** Tres puntos verticales: menú de la tarjeta. */
+export const MoreIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <circle cx="12" cy="5" r="1.4" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+    <circle cx="12" cy="19" r="1.4" fill="currentColor" />
+  </UiIcon>
+);
+
+export const ImageIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="8.5" cy="9.5" r="1.6" />
+    <path d="m3.5 17 4.6-4.6a2 2 0 0 1 2.8 0L15 16.6" />
+    <path d="m14 15.5 1.8-1.8a2 2 0 0 1 2.8 0l1.9 1.9" />
   </UiIcon>
 );

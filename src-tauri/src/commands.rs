@@ -645,6 +645,53 @@ pub async fn get_series_info(
     .map_err(|e| format!("fallo al analizar la colección: {e}"))
 }
 
+/// Rutas de todos los cómics de una carpeta, incluidas sus subcarpetas.
+/// Sirve para marcar una colección entera como leída de una vez.
+#[tauri::command]
+pub fn list_comics_deep(root: String, path: String) -> Result<Vec<String>, String> {
+    let (_, dir) = resolve_within(&root, Some(path))?;
+    Ok(walkdir::WalkDir::new(&dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file() && archive::is_comic(e.path()))
+        .map(|e| e.path().to_string_lossy().to_string())
+        .collect())
+}
+
+/// Fija la portada de una carpeta copiando una imagen dentro como `cover.jpg`.
+///
+/// Se escribe con ese nombre a propósito, siguiendo la convención que ya lee
+/// `manual_folder_cover`: así la portada es un fichero normal y corriente que
+/// el usuario puede ver, cambiar o borrar desde el explorador, y que otras
+/// aplicaciones de cómics también reconocen. Nada queda escondido en una base
+/// de datos interna de la app.
+#[tauri::command]
+pub fn set_folder_cover(root: String, path: String, image: String) -> Result<(), String> {
+    let (_, dir) = resolve_within(&root, Some(path))?;
+    if !dir.is_dir() {
+        return Err("la ruta no es una carpeta".into());
+    }
+
+    let raw = std::fs::read(&image).map_err(|e| format!("no se pudo leer la imagen: {e}"))?;
+
+    // Se reconvierte a JPEG en vez de copiar el original: normaliza el formato
+    // y evita meter en la biblioteca un fichero enorme o con un formato que
+    // luego no se pueda decodificar.
+    let img = image::load_from_memory(&raw)
+        .map_err(|_| "el archivo no es una imagen que se pueda leer".to_string())?;
+
+    let mut buf = std::io::Cursor::new(Vec::new());
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, 90);
+    encoder
+        .encode_image(&img.to_rgb8())
+        .map_err(|e| format!("no se pudo convertir la imagen: {e}"))?;
+
+    std::fs::write(dir.join("cover.jpg"), buf.into_inner())
+        .map_err(|e| format!("no se pudo guardar la portada: {e}"))?;
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn open_comic(path: String) -> Result<Vec<String>, String> {
     archive::list_pages(Path::new(&path))

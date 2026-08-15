@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.1.5
+
+### Añadido
+- **Menú en las carpetas** (los tres puntos, al pasar el ratón por encima) con
+  dos opciones: cambiar la imagen de portada y marcar la carpeta entera como
+  leída. Antes de marcarla se pide confirmación diciendo cuántos cómics se van
+  a marcar, subcarpetas incluidas.
+- La portada que elijas se guarda como `cover.jpg` dentro de la propia carpeta,
+  así que es un fichero normal que puedes ver o cambiar desde el explorador, y
+  que otras aplicaciones de cómics también reconocen.
+
+### Cambiado
+- **Aspecto nuevo**: paleta cálida de tinta y papel con acento dorado en lugar
+  del morado sobre negro, esquinas menos redondeadas, sin desenfoques ni
+  degradados, y tipografía con serifa en los títulos. Icono actualizado a juego.
+- **La detección de colecciones ya no necesita que los archivos traigan
+  metadatos**: si no los tienen, la serie y el número se deducen del nombre del
+  fichero (`Saga 003 (2013)`, `Batman - 042`…), avisando de que es una
+  deducción. Antes, sin metadatos no aparecía nada — y eso dejaba la consulta a
+  Metron fuera de alcance justo para quien más falta le hacía.
+
 ## v0.1.3
 
 ### Añadido

@@ -131,6 +131,32 @@ pub fn set_read(
     persist(&app, &snapshot)
 }
 
+/// Marca o desmarca de golpe todos los cómics de una lista.
+///
+/// Recibe las rutas ya resueltas por el backend de comandos, que es quien sabe
+/// recorrer carpetas y validar que están dentro de la biblioteca.
+#[tauri::command]
+pub fn set_many_read(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Progress>,
+    paths: Vec<String>,
+    read: bool,
+) -> Result<(), String> {
+    let snapshot = {
+        let mut map = state.0.lock().map_err(|_| "estado bloqueado".to_string())?;
+        for path in paths {
+            let entry = map.entry(path).or_default();
+            entry.read = read;
+            if !read {
+                entry.last_page = 0;
+            }
+        }
+        map.clone()
+    };
+    // Una sola escritura para todo el lote, en vez de una por cómic.
+    persist(&app, &snapshot)
+}
+
 /// Guarda por dónde va el usuario. Al llegar a la última página el cómic queda
 /// marcado como leído solo, que es lo que se espera al terminarlo.
 #[tauri::command]

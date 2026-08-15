@@ -1,13 +1,24 @@
 :root {
-  --bg: #0e0f14;
-  --panel: #171922;
-  --panel-2: #1e212c;
-  --border: #2a2e3b;
-  --text: #eceef4;
-  --muted: #8b90a3;
-  --accent: #7c5cff;
-  --accent-hover: #8f72ff;
-  --danger: #e5484d;
+  /* Tinta y papel: grises cálidos en vez del negro azulado de rigor, y un oro
+     apagado de portada antigua en lugar del morado de siempre. */
+  --bg: #15130f;
+  --panel: #1c1a15;
+  --panel-2: #24211a;
+  --border: #34302a;
+  --text: #eae4d8;
+  --muted: #948b7c;
+  --accent: #d8a33c;
+  --accent-hover: #e6b451;
+  /* Texto sobre el acento: el oro pide tinta oscura, no blanco. */
+  --accent-ink: #17150f;
+  --danger: #cc4b3d;
+  --ok: #7d9b4a;
+
+  /* Serifa para los títulos: da aire editorial y rompe con la uniformidad
+     de interfaz genérica. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    "Times New Roman", serif;
+
   color-scheme: dark;
 }
 
@@ -35,7 +46,7 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--border);
 }
@@ -61,7 +72,9 @@ body {
 }
 
 .titlebar-title {
-  font-size: 12.5px;
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--muted);
@@ -92,7 +105,7 @@ body {
 }
 
 .titlebar-btn:hover {
-  background: #2a2e3b;
+  background: var(--panel-2);
   color: var(--text);
 }
 
@@ -108,7 +121,8 @@ body {
   justify-content: center;
   gap: 12px;
   padding: 6px 12px;
-  background: linear-gradient(90deg, #372a70, #4b3aa0);
+  background: var(--panel-2);
+  border-top: 2px solid var(--accent);
   font-size: 12.5px;
   border-bottom: 1px solid var(--border);
 }
@@ -139,9 +153,9 @@ body {
 
 .primary-btn {
   background: var(--accent);
-  color: white;
+  color: var(--accent-ink);
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 9px 16px;
   font-size: 13.5px;
   font-weight: 600;
@@ -179,7 +193,7 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
@@ -202,7 +216,7 @@ body {
   max-width: 260px;
   padding: 8px 10px 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel);
   color: var(--text);
   font-size: 13px;
@@ -233,9 +247,9 @@ body {
   max-width: 420px;
   padding: 5px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--panel);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
 .lib-menu-list {
@@ -249,7 +263,7 @@ body {
 .lib-item {
   display: flex;
   align-items: stretch;
-  border-radius: 7px;
+  border-radius: 3px;
 }
 
 .lib-item:hover {
@@ -315,7 +329,7 @@ body {
   justify-content: center;
   width: 30px;
   border: none;
-  border-radius: 0 7px 7px 0;
+  border-radius: 0 3px 3px 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -341,7 +355,7 @@ body {
   width: 100%;
   padding: 8px 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: 3px;
   background: transparent;
   color: var(--text);
   font-size: 13px;
@@ -409,7 +423,7 @@ body {
 .comic-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 8px;
   cursor: pointer;
   text-align: left;
@@ -418,21 +432,19 @@ body {
   flex-direction: column;
   gap: 6px;
   transition:
-    transform 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .comic-card:hover {
-  transform: translateY(-3px);
   border-color: var(--accent);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  background: var(--panel-2);
 }
 
 .comic-cover {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: 6px;
+  border-radius: 3px;
   overflow: hidden;
   background: var(--panel-2);
   display: flex;
@@ -451,10 +463,9 @@ body {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: 3px;
   background: rgba(14, 15, 20, 0.78);
   color: var(--text);
-  backdrop-filter: blur(4px);
 }
 
 .comic-cover img {
@@ -519,7 +530,7 @@ body {
   height: 22px;
   border-radius: 50%;
   background: var(--accent);
-  color: white;
+  color: var(--accent-ink);
   pointer-events: none;
 }
 
@@ -536,7 +547,7 @@ body {
   height: 26px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 3px;
   background: rgba(14, 15, 20, 0.82);
   color: var(--muted);
   cursor: pointer;
@@ -631,8 +642,8 @@ body {
 }
 
 .reader-stage::-webkit-scrollbar-thumb {
-  background: #3a3f4f;
-  border-radius: 6px;
+  background: #45402f;
+  border-radius: 3px;
 }
 
 .reader-stage::-webkit-scrollbar-track {
@@ -654,7 +665,7 @@ body {
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: 7px;
+  border-radius: 3px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -677,7 +688,7 @@ body {
   min-width: 46px;
   padding: 4px 2px;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   background: transparent;
   color: var(--muted);
   font-size: 11.5px;
@@ -715,12 +726,12 @@ body {
   margin-bottom: 18px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--panel);
 }
 
 .series-banner-complete {
-  border-left-color: #3fb950;
+  border-left-color: var(--ok);
 }
 
 .series-head {
@@ -735,12 +746,13 @@ body {
 }
 
 .series-banner-complete .series-icon {
-  color: #3fb950;
+  color: var(--ok);
 }
 
 .series-name {
-  font-size: 14px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 600;
 }
 
 .series-publisher {
@@ -765,11 +777,11 @@ body {
 }
 
 .series-missing {
-  color: #e3b341;
+  color: var(--accent);
 }
 
 .series-ok {
-  color: #3fb950;
+  color: var(--ok);
 }
 
 .series-note {
@@ -787,7 +799,6 @@ body {
   justify-content: center;
   padding: 24px;
   background: rgba(6, 7, 10, 0.66);
-  backdrop-filter: blur(3px);
 }
 
 .modal {
@@ -795,9 +806,9 @@ body {
   max-width: 460px;
   padding: 18px 20px 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--panel);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 
 .modal-head {
@@ -809,7 +820,9 @@ body {
 
 .modal-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .modal-text {
@@ -839,7 +852,7 @@ body {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
@@ -877,9 +890,9 @@ body {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
-  color: #3fb950;
+  color: var(--ok);
   font-size: 13px;
   font-weight: 600;
 }
@@ -901,10 +914,84 @@ body {
 
 .series-ask:hover:not(:disabled) {
   background: var(--accent);
-  color: white;
+  color: var(--accent-ink);
 }
 
 .series-ask:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Menú de tres puntos de las tarjetas */
+.card-menu {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+
+.card-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(21, 19, 15, 0.85);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    color 0.12s ease;
+}
+
+.comic-card:hover .card-menu-trigger,
+.card-menu-trigger:focus-visible,
+.card-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.card-menu-trigger:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.card-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.card-menu-item:hover {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+.modal-narrow {
+  max-width: 400px;
 }

@@ -17,10 +17,13 @@ import {
   WarningIcon,
   CheckIcon,
   CheckCircleIcon,
+  ImageIcon,
 } from "./Icons";
 import { useLazyInfo, clearInfoCache } from "./useLazyInfo";
 import LibraryPicker from "./LibraryPicker";
 import SeriesBanner from "./SeriesBanner";
+import CardMenu from "./CardMenu";
+import ConfirmDialog from "./ConfirmDialog";
 import MetronPanel from "./MetronPanel";
 
 /** Nombre de carpeta a partir de su ruta, sirviendo tanto `/` como `\`. */
@@ -33,10 +36,14 @@ function FolderCard({
   folder,
   root,
   onOpen,
+  onMarkAll,
+  onChangeCover,
 }: {
   folder: FolderMeta;
   root: string | null;
   onOpen: () => void;
+  onMarkAll: () => void;
+  onChangeCover: () => void;
 }) {
   const { ref, data } = useLazyInfo<FolderInfo>(
     "get_folder_info",
@@ -45,7 +52,18 @@ function FolderCard({
   );
 
   return (
-    <button className="comic-card comic-card-folder" onClick={onOpen}>
+    <div
+      className="comic-card comic-card-folder"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="comic-cover" ref={ref}>
         {data?.cover ? (
           <img src={data.cover} alt={folder.name} loading="lazy" />
@@ -57,6 +75,21 @@ function FolderCard({
         <span className="folder-badge">
           <FolderStackIcon size={13} />
         </span>
+
+        <CardMenu
+          actions={[
+            {
+              label: "Cambiar portada…",
+              icon: <ImageIcon size={15} />,
+              onSelect: onChangeCover,
+            },
+            {
+              label: "Marcar como leída",
+              icon: <CheckIcon size={15} />,
+              onSelect: onMarkAll,
+            },
+          ]}
+        />
       </div>
       <div className="comic-name" title={folder.name}>
         {folder.name}
@@ -66,7 +99,7 @@ function FolderCard({
           ? `${data.comic_count} ${data.comic_count === 1 ? "cómic" : "cómics"}`
           : "…"}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -167,6 +200,14 @@ export default function Library({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [metronOpen, setMetronOpen] = useState(false);
+  const [confirm, setConfirm] = useState<{
+    path: string;
+    name: string;
+    paths: string[];
+  } | null>(null);
+  // Se incrementa para forzar el remontado de las tarjetas cuando cambia algo
+  // que ya estaba cacheado, como la portada de una carpeta.
+  const [cardVersion, setCardVersion] = useState(0);
 
   // Se recarga al volver de leer un cómic, para reflejar lo recién terminado.
   useEffect(() => {
@@ -188,6 +229,67 @@ export default function Library({
       });
     },
     [],
+  );
+
+  /** Cuenta lo que hay dentro y pide confirmación antes de marcar nada. */
+  const askMarkFolder = useCallback(
+    async (folderPath: string, name: string) => {
+      if (!root) return;
+      try {
+        const paths = await invoke<string[]>("list_comics_deep", {
+          root,
+          path: folderPath,
+        });
+        if (paths.length > 0) setConfirm({ path: folderPath, name, paths });
+      } catch {
+        // Sin lista no hay nada que confirmar.
+      }
+    },
+    [root],
+  );
+
+  const applyMarkFolder = useCallback(async () => {
+    if (!confirm) return;
+    const { paths } = confirm;
+    setConfirm(null);
+    try {
+      await invoke("set_many_read", { paths, read: true });
+      setProgress((p) => {
+        const next = { ...p };
+        for (const path of paths) {
+          next[path] = { read: true, last_page: p[path]?.last_page ?? 0 };
+        }
+        return next;
+      });
+    } catch {
+      // Si falla, el progreso se queda como estaba.
+    }
+  }, [confirm]);
+
+  /** Elige una imagen y la deja como portada de la carpeta. */
+  const changeFolderCover = useCallback(
+    async (folderPath: string) => {
+      if (!root) return;
+      const picked = await open({
+        multiple: false,
+        filters: [
+          { name: "Imágenes", extensions: ["jpg", "jpeg", "png", "webp", "bmp"] },
+        ],
+      });
+      if (!picked || Array.isArray(picked)) return;
+      try {
+        await invoke("set_folder_cover", {
+          root,
+          path: folderPath,
+          image: picked,
+        });
+        clearInfoCache();
+        setCardVersion((v) => v + 1);
+      } catch {
+        // La portada anterior se queda como estaba.
+      }
+    },
+    [root],
   );
 
   const browse = useCallback(async (libRoot: string, path?: string) => {
@@ -314,6 +416,16 @@ export default function Library({
 
       {metronOpen && <MetronPanel onClose={() => setMetronOpen(false)} />}
 
+      {confirm && (
+        <ConfirmDialog
+          title="Marcar como leída"
+          message={`Se marcarán como leídos los ${confirm.paths.length} cómics que hay dentro de «${confirm.name}», incluidas sus subcarpetas.`}
+          confirmLabel="Marcar todos"
+          onConfirm={applyMarkFolder}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+
       {!loading && !listing && !error && (
         <div className="empty-state">
           <p>Ninguna biblioteca cargada.</p>
@@ -337,10 +449,12 @@ export default function Library({
         <div className="library-grid">
           {listing.folders.map((folder) => (
             <FolderCard
-              key={folder.path}
+              key={`${folder.path}:${cardVersion}`}
               folder={folder}
               root={root}
               onOpen={() => root && browse(root, folder.path)}
+              onMarkAll={() => askMarkFolder(folder.path, folder.name)}
+              onChangeCover={() => changeFolderCover(folder.path)}
             />
           ))}
 
