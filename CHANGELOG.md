@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.1.2
+
+### Añadido
+- **Zoom en el lector**, del 100% al 400%: con `Ctrl` + rueda, con los botones
+  de la barra o con las teclas `+`, `−` y `0` para restablecer.
+- **Navegación vertical con las flechas arriba y abajo.** Con la página
+  ampliada, las flechas recorren la propia página y solo cambian de página al
+  llegar al borde; si la página cabe entera en pantalla, pasan directamente.
+  La barra espaciadora hace lo mismo que la flecha abajo.
+- **Marcar cómics como leídos**: automáticamente al llegar a la última página,
+  y a mano desde el lector o desde el botón que aparece sobre cada portada. Los
+  leídos se muestran atenuados y con un distintivo.
+- Logotipo propio en la barra de título.
+
+### Cambiado
+- Al retroceder de página, la vista aparece por la parte de abajo, que es por
+  donde se venía leyendo, en vez de saltar al principio.
+- Al cerrar un cómic se vuelve a la carpeta donde estabas, no a la raíz de la
+  biblioteca.
+- Un cómic que no se puede leer ya no desaparece de la biblioteca: se muestra
+  atenuado, con un aviso y el motivo del fallo.
+
+### Rendimiento
+- La biblioteca aparece al instante aunque tenga miles de cómics: el listado ya
+  no abre ningún archivo, y las portadas se generan solo para lo que estás
+  viendo.
+- Las miniaturas se guardan en caché en disco, así que volver a una carpeta ya
+  visitada es inmediato.
+
 ## v0.1.1
 
 ### Añadido
