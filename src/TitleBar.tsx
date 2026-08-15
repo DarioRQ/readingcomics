@@ -5,6 +5,7 @@ import {
   MaximizeIcon,
   RestoreIcon,
   CloseIcon,
+  Logo,
 } from "./Icons";
 
 const win = getCurrentWindow();
@@ -34,8 +35,9 @@ export default function TitleBar({ title }: { title: string }) {
 
   return (
     <div className="titlebar" data-tauri-drag-region>
-      <span className="titlebar-title" data-tauri-drag-region>
-        {title}
+      <span className="titlebar-brand" data-tauri-drag-region>
+        <Logo size={17} />
+        <span className="titlebar-title">{title}</span>
       </span>
       <div className="titlebar-controls">
         <button

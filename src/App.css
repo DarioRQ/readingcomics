@@ -53,6 +53,13 @@ body {
   user-select: none;
 }
 
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
 .titlebar-title {
   font-size: 12.5px;
   font-weight: 600;
@@ -116,6 +123,18 @@ body {
   flex: 1;
   min-height: 0;
   display: flex;
+}
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* La biblioteca se oculta en vez de desmontarse, para no perder la carpeta
+   en la que estabas mientras lees. */
+.pane-hidden {
+  display: none;
 }
 
 .primary-btn {
@@ -301,6 +320,88 @@ body {
 .comic-pages {
   font-size: 11px;
   color: var(--muted);
+}
+
+/* Cómic que no se pudo leer: se muestra igualmente, atenuado y sin abrir, en
+   vez de desaparecer de la biblioteca sin explicación. */
+.comic-card-broken {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.comic-card-broken:hover {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.comic-pages-error {
+  color: var(--danger);
+}
+
+/* Leído: la portada se atenúa para que de un vistazo se vea qué queda por
+   leer, sin necesidad de fijarse en el distintivo. */
+.comic-card-read .comic-cover img {
+  opacity: 0.45;
+}
+
+.read-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  pointer-events: none;
+}
+
+/* El botón de marcar solo aparece al pasar por encima, para no ensuciar la
+   rejilla; si ya está leído se queda visible bajo el distintivo. */
+.read-toggle {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(14, 15, 20, 0.82);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.comic-card:hover .read-toggle,
+.read-toggle:focus-visible {
+  opacity: 1;
+}
+
+.read-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.read-toggle-on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ghost-btn-on {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Reader */

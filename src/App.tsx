@@ -8,17 +8,29 @@ import "./App.css";
 
 function App() {
   const [activeComic, setActiveComic] = useState<ComicMeta | null>(null);
+  // Se incrementa al salir de un cómic para que la biblioteca recargue el
+  // progreso y refleje lo que se acaba de leer.
+  const [progressVersion, setProgressVersion] = useState(0);
+
+  const closeReader = () => {
+    setActiveComic(null);
+    setProgressVersion((v) => v + 1);
+  };
 
   return (
     <div className="app-shell">
       <TitleBar title="readingcomics" />
       <UpdateBanner />
       <div className="app-content">
-        {activeComic ? (
-          <Reader comic={activeComic} onClose={() => setActiveComic(null)} />
-        ) : (
-          <Library onOpenComic={setActiveComic} />
-        )}
+        {/* La biblioteca no se desmonta al leer: así se conserva la carpeta en
+            la que estabas y no vuelves a la raíz al cerrar el cómic. */}
+        <div className={`pane${activeComic ? " pane-hidden" : ""}`}>
+          <Library
+            onOpenComic={setActiveComic}
+            progressVersion={progressVersion}
+          />
+        </div>
+        {activeComic && <Reader comic={activeComic} onClose={closeReader} />}
       </div>
     </div>
   );

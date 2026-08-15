@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ComicMeta } from "./types";
-import { ChevronLeftIcon } from "./Icons";
+import { ChevronLeftIcon, CheckIcon } from "./Icons";
 
 export default function Reader({
   comic,
@@ -14,6 +14,7 @@ export default function Reader({
   const [index, setIndex] = useState(0);
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [read, setRead] = useState(false);
   const cache = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -60,6 +61,27 @@ export default function Reader({
     };
   }, [index, pages, loadPage]);
 
+  // Guarda por dónde vas. El backend marca el cómic como leído solo al
+  // alcanzar la última página, y nos devuelve si ya cuenta como leído.
+  useEffect(() => {
+    if (!pages.length) return;
+    invoke<boolean>("set_progress", {
+      path: comic.path,
+      page: index,
+      total: pages.length,
+    })
+      .then(setRead)
+      .catch(() => {});
+  }, [index, pages.length, comic.path]);
+
+  const toggleRead = () => {
+    const next = !read;
+    setRead(next);
+    invoke("set_read", { path: comic.path, read: next }).catch(() =>
+      setRead(!next),
+    );
+  };
+
   const goNext = useCallback(
     () => setIndex((i) => Math.min(i + 1, pages.length - 1)),
     [pages.length],
@@ -87,6 +109,14 @@ export default function Reader({
         <span className="reader-counter">
           {pages.length ? `${index + 1} / ${pages.length}` : ""}
         </span>
+        <button
+          className={`ghost-btn with-icon${read ? " ghost-btn-on" : ""}`}
+          onClick={toggleRead}
+          title={read ? "Marcar como no leído" : "Marcar como leído"}
+        >
+          <CheckIcon size={15} />
+          {read ? "Leído" : "Marcar leído"}
+        </button>
       </div>
       <div className="reader-stage">
         <div className="reader-zone reader-zone-left" onClick={goPrev} />

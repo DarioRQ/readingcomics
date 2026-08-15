@@ -58,6 +58,51 @@ export const CloseIcon = () => (
   </TitleBarIcon>
 );
 
+/* ---------- Logo ---------- */
+
+/**
+ * Logotipo: un cómic abierto por la mitad, con la página derecha pasando.
+ * El pliegue central hace de "lomo" y las dos viñetas sugieren la retícula de
+ * una página de cómic sin dibujarla entera.
+ */
+export const Logo = ({ size = 18 }: IconProps) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {/* Página izquierda */}
+    <path
+      d="M12 5.5C10.4 4.2 8.2 3.6 5.6 3.9a1.4 1.4 0 0 0-1.2 1.4v11.4c0 .8.7 1.5 1.5 1.4 2.3-.2 4.3.3 6.1 1.5z"
+      fill="currentColor"
+      opacity="0.32"
+    />
+    {/* Página derecha */}
+    <path
+      d="M12 5.5c1.6-1.3 3.8-1.9 6.4-1.6a1.4 1.4 0 0 1 1.2 1.4v11.4c0 .8-.7 1.5-1.5 1.4-2.3-.2-4.3.3-6.1 1.5z"
+      fill="currentColor"
+      opacity="0.72"
+    />
+    {/* Lomo */}
+    <path
+      d="M12 5.5v14.1"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+    {/* Viñetas de la página derecha */}
+    <path
+      d="M14.6 8.2h3.1M14.6 11h3.1"
+      stroke="var(--bg, #0e0f14)"
+      strokeWidth="1.1"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 /* ---------- Interfaz ---------- */
 
 function UiIcon({ size = 18, children }: IconProps & { children: React.ReactNode }) {
@@ -104,6 +149,29 @@ export const FolderStackIcon = (props: IconProps) => (
   <UiIcon {...props}>
     <path d="M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.7.9l.8 1.2a2 2 0 0 0 1.7.9H19a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
     <path d="M3 11h18" />
+  </UiIcon>
+);
+
+export const CheckIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <polyline points="20 6 9 17 4 12" />
+  </UiIcon>
+);
+
+/** Círculo con check: distintivo de "leído". */
+export const CheckCircleIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="8.5 12.2 11 14.7 15.8 9.6" />
+  </UiIcon>
+);
+
+/** Cómic que no se ha podido leer. */
+export const WarningIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
   </UiIcon>
 );
 
