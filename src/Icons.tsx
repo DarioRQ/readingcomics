@@ -96,7 +96,7 @@ export const Logo = ({ size = 18 }: IconProps) => (
     {/* Viñetas de la página derecha */}
     <path
       d="M14.6 8.2h3.1M14.6 11h3.1"
-      stroke="var(--bg, #15130f)"
+      stroke="var(--bg, #0e0f14)"
       strokeWidth="1.1"
       strokeLinecap="round"
     />

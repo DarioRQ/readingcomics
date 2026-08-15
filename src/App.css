@@ -1,18 +1,16 @@
 :root {
-  /* Tinta y papel: grises cálidos en vez del negro azulado de rigor, y un oro
-     apagado de portada antigua en lugar del morado de siempre. */
-  --bg: #15130f;
-  --panel: #1c1a15;
-  --panel-2: #24211a;
-  --border: #34302a;
-  --text: #eae4d8;
-  --muted: #948b7c;
-  --accent: #d8a33c;
-  --accent-hover: #e6b451;
-  /* Texto sobre el acento: el oro pide tinta oscura, no blanco. */
-  --accent-ink: #17150f;
-  --danger: #cc4b3d;
-  --ok: #7d9b4a;
+  --bg: #0e0f14;
+  --panel: #171922;
+  --panel-2: #1e212c;
+  --border: #2a2e3b;
+  --text: #eceef4;
+  --muted: #8b90a3;
+  --accent: #7c5cff;
+  --accent-hover: #8f72ff;
+  /* Texto sobre el acento. */
+  --accent-ink: #ffffff;
+  --danger: #e5484d;
+  --ok: #3fb950;
 
   /* Serifa para los títulos: da aire editorial y rompe con la uniformidad
      de interfaz genérica. */
@@ -642,7 +640,7 @@ body {
 }
 
 .reader-stage::-webkit-scrollbar-thumb {
-  background: #45402f;
+  background: #3a3f4f;
   border-radius: 3px;
 }
 
@@ -777,7 +775,7 @@ body {
 }
 
 .series-missing {
-  color: var(--accent);
+  color: #e3b341;
 }
 
 .series-ok {
@@ -938,7 +936,7 @@ body {
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 3px;
-  background: rgba(21, 19, 15, 0.85);
+  background: rgba(14, 15, 20, 0.85);
   color: var(--muted);
   cursor: pointer;
   opacity: 0;

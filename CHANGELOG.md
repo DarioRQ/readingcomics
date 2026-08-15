@@ -12,9 +12,9 @@
   que otras aplicaciones de cómics también reconocen.
 
 ### Cambiado
-- **Aspecto nuevo**: paleta cálida de tinta y papel con acento dorado en lugar
-  del morado sobre negro, esquinas menos redondeadas, sin desenfoques ni
-  degradados, y tipografía con serifa en los títulos. Icono actualizado a juego.
+- **Interfaz más sobria**: esquinas menos redondeadas, sin desenfoques ni
+  degradados, sin el efecto de levitar al pasar el ratón por las tarjetas, y
+  tipografía con serifa en los títulos. Los colores se mantienen.
 - **La detección de colecciones ya no necesita que los archivos traigan
   metadatos**: si no los tienen, la serie y el número se deducen del nombre del
   fichero (`Saga 003 (2013)`, `Batman - 042`…), avisando de que es una
