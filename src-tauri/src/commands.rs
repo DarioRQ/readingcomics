@@ -626,41 +626,72 @@ pub fn get_page(path: String, name: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
-    fn fixture_root() -> PathBuf {
-        PathBuf::from(
-            std::env::var("READINGCOMICS_TEST_LIB")
-                .expect("define READINGCOMICS_TEST_LIB con la ruta de la biblioteca de prueba"),
-        )
+    /// PNG de 1x1 válido, lo mínimo para que cuente como página.
+    const PNG: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F,
+        0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0xDA, 0x63, 0xF8,
+        0xCF, 0xC0, 0xF0, 0x1F, 0x00, 0x05, 0xFB, 0x02, 0xFE, 0x4A, 0x2F, 0x1A, 0x93, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    ];
+
+    fn write_cbz(path: &Path, pages: usize) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let opts: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+        for i in 0..pages {
+            zip.start_file(format!("page{i:03}.png"), opts).unwrap();
+            zip.write_all(PNG).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    /// Biblioteca de prueba montada al vuelo, para que los tests no dependan
+    /// de ficheros externos y puedan correr en CI.
+    fn fixture() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let serie = dir.path().join("Serie A");
+        std::fs::create_dir_all(&serie).unwrap();
+        std::fs::create_dir_all(dir.path().join("vacia")).unwrap();
+
+        write_cbz(&serie.join("bueno.cbz"), 3);
+
+        // Es un zip válido pero sin ninguna imagen dentro.
+        let f = std::fs::File::create(serie.join("sin_paginas.cbz")).unwrap();
+        let mut zip = zip::ZipWriter::new(f);
+        let opts: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+        zip.start_file("leeme.txt", opts).unwrap();
+        zip.write_all(b"nada").unwrap();
+        zip.finish().unwrap();
+
+        // Ni siquiera es un zip.
+        std::fs::write(serie.join("corrupto.cbz"), b"no soy un zip").unwrap();
+
+        dir
     }
 
     /// Un cómic ilegible debe seguir apareciendo en el listado. Antes se
     /// descartaba en silencio y el usuario veía un hueco sin explicación.
     #[test]
     fn broken_comics_are_still_listed() {
-        let root = fixture_root();
-        let serie = root.join("Serie A");
+        let tmp = fixture();
+        let root = tmp.path().to_string_lossy().to_string();
+        let serie = tmp.path().join("Serie A").to_string_lossy().to_string();
 
-        let listing = list_dir(
-            root.to_string_lossy().to_string(),
-            Some(serie.to_string_lossy().to_string()),
-        )
-        .expect("list_dir debería funcionar");
+        let listing = list_dir(root, Some(serie)).expect("list_dir debería funcionar");
+        let mut names: Vec<&str> = listing.comics.iter().map(|c| c.name.as_str()).collect();
+        names.sort_unstable();
 
-        let names: Vec<&str> = listing.comics.iter().map(|c| c.name.as_str()).collect();
-
-        assert!(names.contains(&"bueno"), "falta el cómic sano: {names:?}");
-        assert!(names.contains(&"corrupto"), "el cómic corrupto desapareció: {names:?}");
-        assert!(names.contains(&"imagen_rota"), "falta imagen_rota: {names:?}");
-        assert!(names.contains(&"sin_paginas"), "falta sin_paginas: {names:?}");
-        assert_eq!(names.len(), 4);
+        assert_eq!(names, vec!["bueno", "corrupto", "sin_paginas"]);
     }
 
     /// Las carpetas sin nada dentro no se listan, pero las que tienen cómics sí.
     #[test]
     fn empty_folders_are_hidden() {
-        let root = fixture_root();
-        let listing = list_dir(root.to_string_lossy().to_string(), None).unwrap();
+        let tmp = fixture();
+        let listing = list_dir(tmp.path().to_string_lossy().to_string(), None).unwrap();
         let names: Vec<&str> = listing.folders.iter().map(|f| f.name.as_str()).collect();
 
         assert!(names.contains(&"Serie A"));
@@ -670,11 +701,14 @@ mod tests {
     /// No se puede salir de la raíz elegida.
     #[test]
     fn cannot_escape_root() {
-        let root = fixture_root();
-        let outside = root.parent().unwrap().to_string_lossy().to_string();
+        let tmp = fixture();
+        let root = tmp.path().join("Serie A").to_string_lossy().to_string();
+        let outside = tmp.path().to_string_lossy().to_string();
 
-        let result = list_dir(root.to_string_lossy().to_string(), Some(outside));
-        assert!(result.is_err(), "debería rechazar rutas fuera de la biblioteca");
+        assert!(
+            list_dir(root, Some(outside)).is_err(),
+            "debería rechazar rutas fuera de la biblioteca"
+        );
     }
 }
 

@@ -26,7 +26,9 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          # libsecret: lo necesita `keyring` para guardar el token de Metron
+          # en el almacén de credenciales del sistema.
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libsecret-1-dev
 
       - uses: dtolnay/rust-toolchain@stable
 
