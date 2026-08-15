@@ -3597,7 +3597,7 @@ dependencies = [
 
 [[package]]
 name = "readingcomics"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.23.1",
  "image",
