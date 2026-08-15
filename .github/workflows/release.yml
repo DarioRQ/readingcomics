@@ -52,6 +52,10 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'readingcomics ${{ github.ref_name }}'
           releaseBody: 'Ver los cambios en CHANGELOG.md.'
-          releaseDraft: true
+          # Publicado directamente, sin pasar por borrador: asi el release se
+          # completa solo aunque no haya nadie delante. El precio es que un
+          # build roto llega a los usuarios sin revision, asi que conviene que
+          # `pnpm build` y `cargo test` esten en verde antes de crear el tag.
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

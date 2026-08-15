@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.6
+
+### Corregido
+- El menú de tres puntos de las carpetas se veía cortado por la mitad. Además,
+  cuando la carpeta está en la última fila, el menú se abre hacia arriba.
+
+### Cambiado
+- **Lo que se consulta a Metron se recuerda.** Antes se perdía al salir de la
+  carpeta y había que volver a preguntar cada vez. Ahora queda guardado, así que
+  la información sigue ahí sin conexión y sin gastar consultas.
+- Si Metron confirma que una serie está **terminada** y la tienes completa, queda
+  marcada como completa de forma permanente. En series todavía en emisión no se
+  marca, porque el número total de hoy no tiene por qué ser el definitivo.
+
 ## v0.1.5
 
 ### Añadido
