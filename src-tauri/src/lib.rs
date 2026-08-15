@@ -10,7 +10,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            commands::scan_library,
+            commands::list_dir,
             commands::open_comic,
             commands::get_page,
             config::load_config,

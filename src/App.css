@@ -248,6 +248,7 @@ body {
 }
 
 .comic-cover {
+  position: relative;
   aspect-ratio: 2 / 3;
   border-radius: 6px;
   overflow: hidden;
@@ -255,6 +256,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Distintivo de carpeta sobre la portada, para diferenciarla de un cómic
+   suelto aunque ambos muestren una imagen. */
+.folder-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(14, 15, 20, 0.78);
+  color: var(--text);
+  backdrop-filter: blur(4px);
 }
 
 .comic-cover img {

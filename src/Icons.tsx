@@ -99,6 +99,14 @@ export const BookIcon = (props: IconProps) => (
   </UiIcon>
 );
 
+/** Carpeta rellena, para la rejilla de la biblioteca. */
+export const FolderStackIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <path d="M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.7.9l.8 1.2a2 2 0 0 0 1.7.9H19a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M3 11h18" />
+  </UiIcon>
+);
+
 export const DownloadIcon = (props: IconProps) => (
   <UiIcon {...props}>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
