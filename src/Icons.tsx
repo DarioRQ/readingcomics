@@ -152,6 +152,23 @@ export const FolderStackIcon = (props: IconProps) => (
   </UiIcon>
 );
 
+export const ZoomInIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <circle cx="11" cy="11" r="7" />
+    <line x1="16.2" y1="16.2" x2="21" y2="21" />
+    <line x1="11" y1="8.2" x2="11" y2="13.8" />
+    <line x1="8.2" y1="11" x2="13.8" y2="11" />
+  </UiIcon>
+);
+
+export const ZoomOutIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <circle cx="11" cy="11" r="7" />
+    <line x1="16.2" y1="16.2" x2="21" y2="21" />
+    <line x1="8.2" y1="11" x2="13.8" y2="11" />
+  </UiIcon>
+);
+
 export const CheckIcon = (props: IconProps) => (
   <UiIcon {...props}>
     <polyline points="20 6 9 17 4 12" />
