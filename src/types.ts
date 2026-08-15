@@ -1,3 +1,7 @@
+export interface AppConfig {
+  library_root: string | null;
+}
+
 export interface ComicMeta {
   path: string;
   name: string;

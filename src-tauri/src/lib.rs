@@ -1,5 +1,6 @@
 mod archive;
 mod commands;
+mod config;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,6 +13,8 @@ pub fn run() {
             commands::scan_library,
             commands::open_comic,
             commands::get_page,
+            config::load_config,
+            config::save_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

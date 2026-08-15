@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import type { ComicMeta } from "./types";
+import type { AppConfig, ComicMeta } from "./types";
 import { FolderIcon, BookIcon } from "./Icons";
 
 export default function Library({
@@ -10,22 +10,47 @@ export default function Library({
   onOpenComic: (comic: ComicMeta) => void;
 }) {
   const [library, setLibrary] = useState<ComicMeta[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [root, setRoot] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const pickFolder = async () => {
-    const dir = await open({ directory: true, multiple: false });
-    if (!dir || Array.isArray(dir)) return;
+  const scan = useCallback(async (dir: string) => {
     setLoading(true);
     setError(null);
     try {
       const comics = await invoke<ComicMeta[]>("scan_library", { root: dir });
       setLibrary(comics);
+      setRoot(dir);
     } catch (e) {
+      setLibrary([]);
       setError(String(e));
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Al arrancar, recuperamos la última carpeta usada y la escaneamos sola.
+  useEffect(() => {
+    let cancelled = false;
+    invoke<AppConfig>("load_config")
+      .then((cfg) => {
+        if (cancelled) return;
+        if (cfg.library_root) scan(cfg.library_root);
+        else setLoading(false);
+      })
+      .catch(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [scan]);
+
+  const pickFolder = async () => {
+    const dir = await open({ directory: true, multiple: false });
+    if (!dir || Array.isArray(dir)) return;
+    await scan(dir);
+    // Se guarda aunque el escaneo falle: si el usuario la eligió a propósito,
+    // querrá reintentarla la próxima vez, no volver a buscarla.
+    invoke("save_config", { config: { library_root: dir } }).catch(() => {});
   };
 
   return (
@@ -33,15 +58,24 @@ export default function Library({
       <div className="library-toolbar">
         <button className="primary-btn with-icon" onClick={pickFolder}>
           <FolderIcon size={16} />
-          {library.length ? "Cambiar carpeta" : "Elegir carpeta de cómics"}
+          {root ? "Cambiar carpeta" : "Elegir carpeta de cómics"}
         </button>
+        {root && !loading && (
+          <span className="library-path" title={root}>
+            {root}
+          </span>
+        )}
         {loading && <span className="loading-text">Escaneando…</span>}
         {error && <span className="error-text">{error}</span>}
       </div>
 
       {!loading && library.length === 0 && !error && (
         <div className="empty-state">
-          <p>Ninguna biblioteca cargada.</p>
+          <p>
+            {root
+              ? "No se encontró ningún cómic en esta carpeta."
+              : "Ninguna biblioteca cargada."}
+          </p>
           <p className="empty-hint">
             Elige una carpeta con archivos .cbz / .cbr para empezar.
           </p>

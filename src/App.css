@@ -171,6 +171,16 @@ body {
   border-color: var(--accent);
 }
 
+.library-path {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* si la ruta no cabe, recorta por el principio, no por el final */
+  text-align: left;
+}
+
 .loading-text,
 .error-text {
   font-size: 12.5px;
