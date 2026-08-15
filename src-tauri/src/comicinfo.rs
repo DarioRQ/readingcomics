@@ -203,3 +203,143 @@ mod integration {
         assert_eq!(missing, vec![4, 6, 7, 10, 11, 12], "huecos detectados");
     }
 }
+
+/* ---------- Deducción a partir del nombre de fichero ---------- */
+
+/// Serie y número deducidos del nombre de un archivo.
+///
+/// Es un apaño, no una fuente fiable: se usa solo cuando el cómic no trae
+/// `ComicInfo.xml`. Sin esto no habría forma de detectar una colección en las
+/// bibliotecas sin etiquetar, que son la mayoría.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct NameGuess {
+    pub series: Option<String>,
+    pub number: Option<u32>,
+}
+
+fn looks_like_year(n: u32, digits: usize) -> bool {
+    digits == 4 && (1900..=2100).contains(&n)
+}
+
+/// Intenta sacar serie y número de algo tipo `Saga 003 (2013)`.
+///
+/// Reglas, en este orden:
+/// 1. Se quita lo que va entre paréntesis o corchetes: años, `[Digital]`, etc.
+/// 2. Se ignoran los marcadores de volumen (`v01`, `Vol.2`), que no son el número.
+/// 3. Se coge el último número suelto que no parezca un año.
+/// 4. La serie es lo que quede por delante.
+pub fn guess_from_filename(stem: &str) -> NameGuess {
+    // 1. Fuera los grupos entre paréntesis y corchetes.
+    let mut cleaned = String::with_capacity(stem.len());
+    let mut depth = 0i32;
+    for c in stem.chars() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = (depth - 1).max(0),
+            _ if depth == 0 => cleaned.push(c),
+            _ => {}
+        }
+    }
+
+    let tokens: Vec<&str> = cleaned
+        .split(|c: char| c.is_whitespace() || c == '_')
+        .filter(|t| !t.is_empty())
+        .collect();
+
+    let mut number = None;
+    let mut number_at = None;
+
+    for (i, tok) in tokens.iter().enumerate() {
+        let t = tok.trim_start_matches('#');
+
+        // 2. `v01`, `vol.2`… es el volumen, no el número del ejemplar.
+        let lower = t.to_lowercase();
+        if lower.starts_with('v') && lower.trim_start_matches("vol").trim_start_matches('v')
+            .trim_start_matches('.')
+            .chars()
+            .all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+
+        let digits: String = t.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if digits.is_empty() || digits.len() != t.trim_end_matches(|c: char| !c.is_ascii_digit()).len()
+        {
+            // Solo cuentan los tokens que son número (admitiendo sufijo tipo `3a`).
+            if digits.is_empty() {
+                continue;
+            }
+        }
+
+        let Ok(n) = digits.parse::<u32>() else {
+            continue;
+        };
+        // 3. Un año suelto no es el número del ejemplar.
+        if looks_like_year(n, digits.len()) {
+            continue;
+        }
+        number = Some(n);
+        number_at = Some(i);
+    }
+
+    // 4. La serie es lo de delante, sin separadores colgando.
+    let series = match number_at {
+        Some(0) | None => None,
+        Some(i) => {
+            let name = tokens[..i]
+                .join(" ")
+                .trim()
+                .trim_end_matches(['-', '–', '—', '.', ','])
+                .trim()
+                .to_string();
+            if name.is_empty() {
+                None
+            } else {
+                Some(name)
+            }
+        }
+    };
+
+    NameGuess { series, number }
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+
+    fn guess(s: &str) -> (Option<String>, Option<u32>) {
+        let g = guess_from_filename(s);
+        (g.series, g.number)
+    }
+
+    #[test]
+    fn parses_common_naming_patterns() {
+        assert_eq!(guess("Saga 003"), (Some("Saga".into()), Some(3)));
+        assert_eq!(guess("Saga #12"), (Some("Saga".into()), Some(12)));
+        assert_eq!(guess("Saga 003 (2013)"), (Some("Saga".into()), Some(3)));
+        assert_eq!(
+            guess("Batman - 042 [Digital]"),
+            (Some("Batman".into()), Some(42))
+        );
+        assert_eq!(
+            guess("Asterix 12 - La Cizana"),
+            (Some("Asterix".into()), Some(12))
+        );
+    }
+
+    #[test]
+    fn ignores_volume_markers() {
+        assert_eq!(guess("Saga v01 003"), (Some("Saga v01".into()), Some(3)));
+    }
+
+    #[test]
+    fn a_lone_year_is_not_an_issue_number() {
+        assert_eq!(guess("Watchmen (1986)"), (None, None));
+    }
+
+    #[test]
+    fn gives_up_cleanly_when_there_is_nothing_to_read() {
+        assert_eq!(guess("portada"), (None, None));
+        assert_eq!(guess("007"), (None, Some(7)));
+    }
+}

@@ -47,6 +47,8 @@ export interface SeriesInfo {
   missing: number[];
   tagged: number;
   untagged: number;
+  /** La serie y los números se dedujeron del nombre de los ficheros. */
+  guessed: boolean;
 }
 
 export interface FolderInfo {

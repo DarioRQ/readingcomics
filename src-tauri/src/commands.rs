@@ -59,6 +59,9 @@ pub struct SeriesInfo {
     /// Cuántos cómics traían metadatos y cuántos no.
     pub tagged: usize,
     pub untagged: usize,
+    /// `true` si la serie y los números salen del nombre de los ficheros en vez
+    /// de metadatos incrustados. La interfaz lo advierte: es una deducción.
+    pub guessed: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -539,6 +542,8 @@ pub async fn get_series_info(
         // La serie se decide por mayoría: alguna release suelta puede traer el
         // nombre mal escrito y no debe cambiar el de toda la carpeta.
         let mut series_votes: HashMap<String, usize> = HashMap::new();
+        let mut guessed_series: HashMap<String, usize> = HashMap::new();
+        let mut guessed_numbers: Vec<u32> = Vec::new();
         let (mut tagged, mut untagged) = (0usize, 0usize);
 
         let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -571,8 +576,30 @@ pub async fn get_series_info(
                         owned.push(n);
                     }
                 }
-                None => untagged += 1,
+                None => {
+                    untagged += 1;
+                    // Sin metadatos, se deduce del nombre del fichero. Es lo
+                    // único que permite detectar colecciones en bibliotecas sin
+                    // etiquetar, que son la mayoría.
+                    let stem = p
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    let guess = crate::comicinfo::guess_from_filename(&stem);
+                    if let Some(n) = guess.number {
+                        guessed_numbers.push(n);
+                    }
+                    if let Some(sname) = guess.series {
+                        *guessed_series.entry(sname).or_default() += 1;
+                    }
+                }
             }
+        }
+
+        // Si no hubo ni un metadato, se tira de lo deducido del nombre.
+        let guessed = owned.is_empty() && !guessed_numbers.is_empty();
+        if guessed {
+            owned = guessed_numbers;
         }
 
         owned.sort_unstable();
@@ -591,17 +618,27 @@ pub async fn get_series_info(
                 .collect()
         };
 
-        SeriesInfo {
-            series: series_votes
+        let best = |votes: HashMap<String, usize>| {
+            votes
                 .into_iter()
-                .max_by_key(|(_, votes)| *votes)
-                .map(|(name, _)| name),
+                .max_by_key(|(_, n)| *n)
+                .map(|(name, _)| name)
+        };
+
+        SeriesInfo {
+            series: best(series_votes)
+                .or_else(|| best(guessed_series))
+                // Último recurso: el nombre de la carpeta suele ser la serie.
+                .or_else(|| {
+                    dir.file_name().map(|n| n.to_string_lossy().to_string())
+                }),
             publisher,
             total: declared_total,
             owned,
             missing,
             tagged,
             untagged,
+            guessed,
         }
     })
     .await

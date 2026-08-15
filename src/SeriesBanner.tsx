@@ -74,9 +74,10 @@ export default function SeriesBanner({
     }
   };
 
-  // Sin metadatos no hay nada fiable que contar, así que no se muestra nada
-  // en vez de inventar una serie a partir del nombre de la carpeta.
-  if (!info || !info.series || info.tagged === 0) return null;
+  // Se muestra si hay serie y al menos un número, venga de metadatos o
+  // deducido del nombre de los ficheros. Antes se exigían metadatos, y eso
+  // dejaba sin banner —y sin acceso a Metron— justo a quien más lo necesita.
+  if (!info || !info.series || info.owned.length === 0) return null;
 
   const have = info.owned.length;
   // El total del ComicInfo manda; Metron solo rellena cuando no lo declara.
@@ -130,7 +131,11 @@ export default function SeriesBanner({
           </span>
         )}
 
-        {info.total === null && !metron && canAsk && (
+        {info.guessed && (
+          <span className="series-note">Deducido del nombre de los archivos</span>
+        )}
+
+        {total === null && !metron && canAsk && (
           <button className="series-ask" onClick={askMetron} disabled={asking}>
             {asking ? "Consultando…" : "Buscar en Metron"}
           </button>
