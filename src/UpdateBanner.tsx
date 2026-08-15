@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { DownloadIcon } from "./Icons";
 
 type Status = "idle" | "working" | "error";
 
@@ -30,10 +31,11 @@ export default function UpdateBanner() {
     <div className="update-banner">
       <span>Actualización disponible: v{update.version}</span>
       <button
-        className="primary-btn"
+        className="primary-btn with-icon"
         onClick={install}
         disabled={status === "working"}
       >
+        <DownloadIcon size={15} />
         {status === "working"
           ? "Actualizando…"
           : status === "error"

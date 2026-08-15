@@ -71,12 +71,17 @@ body {
   border: none;
   background: transparent;
   color: var(--muted);
-  font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.12s ease;
+}
+
+/* Sin esto, el trazo de 1px de los iconos de la barra sale difuminado al
+   escalar la ventana a DPI fraccionarios (125%, 150%). */
+.titlebar-btn svg {
+  shape-rendering: crispEdges;
 }
 
 .titlebar-btn:hover {
@@ -138,6 +143,17 @@ body {
 .primary-btn:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* Botones que llevan icono + texto */
+.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.with-icon svg {
+  flex-shrink: 0;
 }
 
 .ghost-btn {
@@ -240,7 +256,10 @@ body {
 
 .comic-cover-placeholder {
   color: var(--muted);
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
 }
 
 .comic-name {

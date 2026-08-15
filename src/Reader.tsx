@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ComicMeta } from "./types";
+import { ChevronLeftIcon } from "./Icons";
 
 export default function Reader({
   comic,
@@ -78,8 +79,9 @@ export default function Reader({
   return (
     <div className="reader">
       <div className="reader-topbar">
-        <button className="ghost-btn" onClick={onClose}>
-          ← Biblioteca
+        <button className="ghost-btn with-icon" onClick={onClose}>
+          <ChevronLeftIcon size={16} />
+          Biblioteca
         </button>
         <span className="reader-title">{comic.name}</span>
         <span className="reader-counter">

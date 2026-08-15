@@ -2,6 +2,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import type { ComicMeta } from "./types";
+import { FolderIcon, BookIcon } from "./Icons";
 
 export default function Library({
   onOpenComic,
@@ -30,7 +31,8 @@ export default function Library({
   return (
     <div className="library">
       <div className="library-toolbar">
-        <button className="primary-btn" onClick={pickFolder}>
+        <button className="primary-btn with-icon" onClick={pickFolder}>
+          <FolderIcon size={16} />
           {library.length ? "Cambiar carpeta" : "Elegir carpeta de cómics"}
         </button>
         {loading && <span className="loading-text">Escaneando…</span>}
@@ -57,7 +59,9 @@ export default function Library({
               {comic.cover ? (
                 <img src={comic.cover} alt={comic.name} loading="lazy" />
               ) : (
-                <div className="comic-cover-placeholder">?</div>
+                <div className="comic-cover-placeholder">
+                  <BookIcon size={32} />
+                </div>
               )}
             </div>
             <div className="comic-name" title={comic.name}>
