@@ -1,4 +1,5 @@
 mod archive;
+mod comicinfo;
 mod commands;
 mod config;
 
@@ -22,6 +23,7 @@ pub fn run() {
             commands::list_dir,
             commands::get_comic_info,
             commands::get_folder_info,
+            commands::get_series_info,
             commands::open_comic,
             commands::get_page,
             config::load_config,

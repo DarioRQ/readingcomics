@@ -1,6 +1,6 @@
 use crate::archive;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
@@ -40,6 +40,25 @@ pub struct ComicInfo {
     pub cover: Option<String>,
     pub page_count: usize,
     pub error: Option<String>,
+    /// Metadatos del ComicInfo.xml incrustado, si el archivo lo trae.
+    pub meta: Option<crate::comicinfo::ComicInfoXml>,
+}
+
+/// Estado de una colección dentro de una carpeta.
+#[derive(Serialize, Clone, Default)]
+pub struct SeriesInfo {
+    pub series: Option<String>,
+    pub publisher: Option<String>,
+    /// Total de números que declara ComicInfo.xml, si lo declara.
+    pub total: Option<u32>,
+    /// Números que tienes, ordenados.
+    pub owned: Vec<u32>,
+    /// Huecos detectados entre el primero y el último que tienes, más los que
+    /// falten hasta `total` si se conoce.
+    pub missing: Vec<u32>,
+    /// Cuántos cómics traían metadatos y cuántos no.
+    pub tagged: usize,
+    pub untagged: usize,
 }
 
 #[derive(Serialize, Clone)]
@@ -95,6 +114,45 @@ fn store_thumb(app: &tauri::AppHandle, key: &str, bytes: &[u8]) {
     }
 }
 
+/// Lo que se guarda junto a la miniatura para no volver a abrir el archivo.
+///
+/// Cachear solo la imagen no bastaba: el número de páginas obligaba a abrir y
+/// recorrer el cómic en cada visita, que en CBR es justo la parte cara porque
+/// hay que escanear todas las cabeceras. El error también se cachea, para no
+/// reintentar en bucle los archivos rotos.
+#[derive(Serialize, Deserialize, Clone)]
+struct CachedMeta {
+    page_count: usize,
+    has_cover: bool,
+    error: Option<String>,
+    #[serde(default)]
+    meta: Option<crate::comicinfo::ComicInfoXml>,
+}
+
+fn cached_meta_as<T: serde::de::DeserializeOwned>(
+    app: &tauri::AppHandle,
+    key: &str,
+) -> Option<T> {
+    let path = cache_dir(app)?.join(format!("{key}.json"));
+    serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
+}
+
+fn store_meta_as<T: Serialize>(app: &tauri::AppHandle, key: &str, value: &T) {
+    if let Some(dir) = cache_dir(app) {
+        if let Ok(json) = serde_json::to_string(value) {
+            let _ = std::fs::write(dir.join(format!("{key}.json")), json);
+        }
+    }
+}
+
+fn cached_meta(app: &tauri::AppHandle, key: &str) -> Option<CachedMeta> {
+    cached_meta_as(app, key)
+}
+
+fn store_meta(app: &tauri::AppHandle, key: &str, meta: &CachedMeta) {
+    store_meta_as(app, key, meta)
+}
+
 /// Reescala unos bytes de imagen a miniatura JPEG.
 fn make_thumb(raw: &[u8]) -> Option<Vec<u8>> {
     let img = image::load_from_memory(raw).ok()?;
@@ -106,28 +164,124 @@ fn make_thumb(raw: &[u8]) -> Option<Vec<u8>> {
     Some(buf.into_inner())
 }
 
-/// Miniatura de la primera página de un cómic, pasando por la caché en disco.
-fn comic_thumb(app: &tauri::AppHandle, path: &Path) -> Result<Option<Vec<u8>>, String> {
+/// Portada y metadatos de un cómic, abriendo el archivo una sola vez y solo
+/// cuando no está ya en caché.
+fn comic_info_cached(app: &tauri::AppHandle, path: &Path) -> ComicInfo {
     let key = cache_key(path);
+
+    // Acierto de caché: ni se toca el archivo.
     if let Some(k) = &key {
-        if let Some(bytes) = cached_thumb(app, k) {
-            return Ok(Some(bytes));
+        if let Some(meta) = cached_meta(app, k) {
+            return ComicInfo {
+                cover: if meta.has_cover {
+                    cached_thumb(app, k).as_deref().map(to_data_uri)
+                } else {
+                    None
+                },
+                page_count: meta.page_count,
+                error: meta.error,
+                meta: meta.meta,
+            };
         }
     }
 
-    let pages = archive::list_pages(path)?;
-    let Some(first) = pages.first() else {
-        return Ok(None);
-    };
-    let raw = archive::read_page(path, first)?;
-    let Some(thumb) = make_thumb(&raw) else {
-        return Err("no se pudo decodificar la primera página".into());
+    let store = |meta: CachedMeta| {
+        if let Some(k) = &key {
+            store_meta(app, k, &meta);
+        }
+        meta
     };
 
+    // Una sola apertura: de aquí salen tanto el recuento como la portada.
+    let pages = match archive::list_pages(path) {
+        Ok(p) => p,
+        Err(e) => {
+            let meta = store(CachedMeta {
+                page_count: 0,
+                has_cover: false,
+                error: Some(e.clone()),
+                meta: None,
+            });
+            return ComicInfo {
+                cover: None,
+                page_count: 0,
+                error: meta.error,
+                meta: None,
+            };
+        }
+    };
+
+    let page_count = pages.len();
+    let Some(first) = pages.first() else {
+        store(CachedMeta {
+            page_count: 0,
+            has_cover: false,
+            error: Some("el archivo no contiene páginas legibles".into()),
+            meta: None,
+        });
+        return ComicInfo {
+            cover: None,
+            page_count: 0,
+            error: Some("el archivo no contiene páginas legibles".into()),
+            meta: None,
+        };
+    };
+
+    let thumb = archive::read_page(path, first)
+        .ok()
+        .and_then(|raw| make_thumb(&raw));
+
+    if let (Some(k), Some(bytes)) = (&key, &thumb) {
+        store_thumb(app, k, bytes);
+    }
+
+    let error = if thumb.is_none() {
+        Some("no se pudo decodificar la portada".to_string())
+    } else {
+        None
+    };
+
+    // ComicInfo.xml: una lectura extra del archivo, pero solo la primera vez;
+    // a partir de ahí sale de la caché junto al resto.
+    let xml = crate::comicinfo::read(path);
+
+    store(CachedMeta {
+        page_count,
+        has_cover: thumb.is_some(),
+        error: error.clone(),
+        meta: xml.clone(),
+    });
+
+    ComicInfo {
+        cover: thumb.as_deref().map(to_data_uri),
+        page_count,
+        error,
+        meta: xml,
+    }
+}
+
+/// Solo la miniatura, para usar la portada de un cómic como portada de carpeta.
+fn comic_thumb(app: &tauri::AppHandle, path: &Path) -> Option<Vec<u8>> {
+    let key = cache_key(path);
+    if let Some(k) = &key {
+        if let Some(bytes) = cached_thumb(app, k) {
+            return Some(bytes);
+        }
+        // Si ya sabemos que no tiene portada, no se reabre el archivo.
+        if let Some(meta) = cached_meta(app, k) {
+            if !meta.has_cover {
+                return None;
+            }
+        }
+    }
+
+    let pages = archive::list_pages(path).ok()?;
+    let raw = archive::read_page(path, pages.first()?).ok()?;
+    let thumb = make_thumb(&raw)?;
     if let Some(k) = &key {
         store_thumb(app, k, &thumb);
     }
-    Ok(Some(thumb))
+    Some(thumb)
 }
 
 /// Portada manual de una carpeta: `cover.jpg`, `folder.png`, etc.
@@ -173,6 +327,19 @@ fn worth_listing(dir: &Path) -> bool {
         }
     }
     false
+}
+
+/// Recuento de una carpeta ya calculado.
+///
+/// Se cachea porque contar obliga a recorrer todo el subárbol, y eso se repetía
+/// en cada visita. La clave incluye la fecha de la propia carpeta: si añades o
+/// quitas cómics **directamente** en ella, el recuento se recalcula solo. Un
+/// cambio en una subcarpeta anidada no la invalida — el precio de no volver a
+/// recorrer miles de ficheros cada vez que se mira una estantería.
+#[derive(Serialize, Deserialize, Clone)]
+struct CachedFolder {
+    comic_count: usize,
+    first_comic: Option<String>,
 }
 
 /// Recorre una carpeta y devuelve (primer cómic, total de cómics).
@@ -296,28 +463,9 @@ pub async fn get_comic_info(
 
     // spawn_blocking: descomprimir y decodificar es trabajo intensivo de CPU y
     // no debe ocupar el hilo del runtime asíncrono.
-    tauri::async_runtime::spawn_blocking(move || {
-        let page_count = archive::list_pages(&file).map(|p| p.len()).unwrap_or(0);
-
-        match comic_thumb(&app, &file) {
-            Ok(thumb) => ComicInfo {
-                cover: thumb.as_deref().map(to_data_uri),
-                page_count,
-                error: if page_count == 0 {
-                    Some("el archivo no contiene páginas legibles".into())
-                } else {
-                    None
-                },
-            },
-            Err(e) => ComicInfo {
-                cover: None,
-                page_count,
-                error: Some(e),
-            },
-        }
-    })
-    .await
-    .map_err(|e| format!("fallo al procesar el cómic: {e}"))
+    tauri::async_runtime::spawn_blocking(move || comic_info_cached(&app, &file))
+        .await
+        .map_err(|e| format!("fallo al procesar el cómic: {e}"))
 }
 
 /// Portada y recuento de una carpeta, también en diferido.
@@ -330,13 +478,35 @@ pub async fn get_folder_info(
     let (_, dir) = resolve_within(&root, Some(path))?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        let (first_comic, comic_count) = folder_stats(&dir);
+        let key = cache_key(&dir).map(|k| format!("dir-{k}"));
 
-        let cover = manual_folder_cover(&app, &dir).or_else(|| {
-            first_comic
-                .as_deref()
-                .and_then(|c| comic_thumb(&app, c).ok().flatten())
-        });
+        // El recorrido del subárbol solo se hace si no está ya calculado.
+        let cached: Option<CachedFolder> = key
+            .as_deref()
+            .and_then(|k| cached_meta_as::<CachedFolder>(&app, k));
+
+        let (first_comic, comic_count) = match cached {
+            Some(c) => (c.first_comic.map(PathBuf::from), c.comic_count),
+            None => {
+                let (first, count) = folder_stats(&dir);
+                if let Some(k) = &key {
+                    store_meta_as(
+                        &app,
+                        k,
+                        &CachedFolder {
+                            comic_count: count,
+                            first_comic: first
+                                .as_ref()
+                                .map(|p| p.to_string_lossy().to_string()),
+                        },
+                    );
+                }
+                (first, count)
+            }
+        };
+
+        let cover = manual_folder_cover(&app, &dir)
+            .or_else(|| first_comic.as_deref().and_then(|c| comic_thumb(&app, c)));
 
         FolderInfo {
             cover: cover.as_deref().map(to_data_uri),
@@ -345,6 +515,97 @@ pub async fn get_folder_info(
     })
     .await
     .map_err(|e| format!("fallo al leer la carpeta: {e}"))
+}
+
+/// Analiza los cómics de una carpeta y deduce qué colección es y si está
+/// completa, usando el ComicInfo.xml incrustado en los archivos.
+///
+/// Solo mira los cómics de ese nivel, no del subárbol: una carpeta suele ser
+/// una serie, y mezclar niveles daría recuentos sin sentido.
+#[tauri::command]
+pub async fn get_series_info(
+    app: tauri::AppHandle,
+    root: String,
+    path: String,
+) -> Result<SeriesInfo, String> {
+    let (_, dir) = resolve_within(&root, Some(path))?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::collections::HashMap;
+
+        let mut owned: Vec<u32> = Vec::new();
+        let mut declared_total: Option<u32> = None;
+        let mut publisher: Option<String> = None;
+        // La serie se decide por mayoría: alguna release suelta puede traer el
+        // nombre mal escrito y no debe cambiar el de toda la carpeta.
+        let mut series_votes: HashMap<String, usize> = HashMap::new();
+        let (mut tagged, mut untagged) = (0usize, 0usize);
+
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return SeriesInfo::default();
+        };
+
+        for entry in entries.filter_map(|e| e.ok()) {
+            let p = entry.path();
+            if !p.is_file() || !archive::is_comic(&p) {
+                continue;
+            }
+
+            match comic_info_cached(&app, &p).meta {
+                Some(m) => {
+                    tagged += 1;
+                    if let Some(s) = m.series.as_deref() {
+                        *series_votes.entry(s.to_string()).or_default() += 1;
+                    }
+                    if publisher.is_none() {
+                        publisher = m.publisher.clone();
+                    }
+                    // Se queda el total más alto declarado: si una release trae
+                    // el dato desactualizado, no debe recortar la serie.
+                    if let Some(c) = m.count.filter(|c| *c > 0) {
+                        let c = c as u32;
+                        declared_total = Some(declared_total.map_or(c, |d: u32| d.max(c)));
+                    }
+                    if let Some(n) = m.number.as_deref().and_then(crate::comicinfo::issue_number)
+                    {
+                        owned.push(n);
+                    }
+                }
+                None => untagged += 1,
+            }
+        }
+
+        owned.sort_unstable();
+        owned.dedup();
+
+        // Huecos: lo que falta entre el primero y el último que tienes, y
+        // además hasta el total si la serie lo declara.
+        let missing = if owned.is_empty() {
+            Vec::new()
+        } else {
+            let hasta = declared_total
+                .unwrap_or(*owned.last().unwrap())
+                .max(*owned.last().unwrap());
+            (*owned.first().unwrap()..=hasta)
+                .filter(|n| !owned.contains(n))
+                .collect()
+        };
+
+        SeriesInfo {
+            series: series_votes
+                .into_iter()
+                .max_by_key(|(_, votes)| *votes)
+                .map(|(name, _)| name),
+            publisher,
+            total: declared_total,
+            owned,
+            missing,
+            tagged,
+            untagged,
+        }
+    })
+    .await
+    .map_err(|e| format!("fallo al analizar la colección: {e}"))
 }
 
 #[tauri::command]
@@ -414,5 +675,40 @@ mod tests {
 
         let result = list_dir(root.to_string_lossy().to_string(), Some(outside));
         assert!(result.is_err(), "debería rechazar rutas fuera de la biblioteca");
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use super::*;
+    use std::time::Instant;
+
+    /// No es un test de correccion: mide el coste que la cache evita.
+    /// Ignorado por defecto; se lanza con `cargo test -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn cost_of_opening_every_comic() {
+        let Ok(root) = std::env::var("READINGCOMICS_BIG_LIB") else {
+            eprintln!("define READINGCOMICS_BIG_LIB");
+            return;
+        };
+        let dir = PathBuf::from(&root).join("Serie");
+
+        let t = Instant::now();
+        let listing = list_dir(root.clone(), Some(dir.to_string_lossy().to_string()))
+            .expect("list_dir");
+        let listing_ms = t.elapsed().as_secs_f64() * 1000.0;
+
+        let t = Instant::now();
+        let mut pages = 0usize;
+        for c in &listing.comics {
+            pages += archive::list_pages(Path::new(&c.path)).map(|p| p.len()).unwrap_or(0);
+        }
+        let open_ms = t.elapsed().as_secs_f64() * 1000.0;
+
+        println!("comics                     : {}", listing.comics.len());
+        println!("list_dir (solo ficheros)   : {listing_ms:.1} ms");
+        println!("abrir y listar cada comic  : {open_ms:.1} ms  ({pages} paginas)");
+        println!("--> lo que ahorra la cache : {open_ms:.1} ms por visita");
     }
 }

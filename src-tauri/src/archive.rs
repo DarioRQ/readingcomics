@@ -167,3 +167,55 @@ fn read_page_rar(path: &Path, name: &str) -> Result<Vec<u8>, String> {
         }
     }
 }
+
+/// Nombre del fichero de metadatos que muchas releases incluyen dentro del
+/// propio CBZ/CBR. Es el estándar de ComicRack, adoptado de facto por todo el
+/// ecosistema (Komga, Kavita, ComicTagger...).
+const METADATA_ENTRY: &str = "comicinfo.xml";
+
+fn is_metadata_entry(name: &str) -> bool {
+    name.to_lowercase()
+        .rsplit('/')
+        .next()
+        .map(|base| base == METADATA_ENTRY)
+        .unwrap_or(false)
+}
+
+/// Devuelve el ComicInfo.xml del archivo, si lo trae.
+pub fn read_metadata(path: &Path) -> Option<Vec<u8>> {
+    match ext_of(path.to_string_lossy().as_ref()).as_str() {
+        "cbz" => read_metadata_zip(path),
+        "cbr" => read_metadata_rar(path),
+        _ => None,
+    }
+}
+
+fn read_metadata_zip(path: &Path) -> Option<Vec<u8>> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let name = archive
+        .file_names()
+        .find(|n| is_metadata_entry(n))?
+        .to_string();
+    let mut entry = archive.by_name(&name).ok()?;
+    let mut buf = Vec::new();
+    entry.read_to_end(&mut buf).ok()?;
+    Some(buf)
+}
+
+fn read_metadata_rar(path: &Path) -> Option<Vec<u8>> {
+    let mut archive = unrar::Archive::new(path).open_for_processing().ok()?;
+    loop {
+        match archive.read_header() {
+            Ok(Some(next)) => {
+                let name = next.entry().filename.to_string_lossy().replace('\\', "/");
+                if is_metadata_entry(&name) {
+                    let (data, _rest) = next.read().ok()?;
+                    return Some(data);
+                }
+                archive = next.skip().ok()?;
+            }
+            _ => return None,
+        }
+    }
+}

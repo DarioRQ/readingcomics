@@ -20,6 +20,7 @@ import {
 } from "./Icons";
 import { useLazyInfo, clearInfoCache } from "./useLazyInfo";
 import LibraryPicker from "./LibraryPicker";
+import SeriesBanner from "./SeriesBanner";
 
 /** Nombre de carpeta a partir de su ruta, sirviendo tanto `/` como `\`. */
 function baseName(path: string) {
@@ -142,7 +143,9 @@ function ComicCard({
         {broken
           ? "No se pudo leer"
           : data
-            ? `${data.page_count} páginas`
+            ? data.meta?.number
+              ? `N.º ${data.meta.number} · ${data.page_count} págs.`
+              : `${data.page_count} páginas`
             : "…"}
       </div>
     </div>
@@ -312,6 +315,10 @@ export default function Library({
         <div className="empty-state">
           <p>Esta carpeta no contiene cómics.</p>
         </div>
+      )}
+
+      {!loading && listing && root && listing.comics.length > 0 && (
+        <SeriesBanner root={root} path={listing.path} />
       )}
 
       {!loading && listing && (

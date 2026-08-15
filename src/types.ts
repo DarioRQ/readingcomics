@@ -14,12 +14,39 @@ export interface FolderMeta {
   name: string;
 }
 
+/** Metadatos del ComicInfo.xml incrustado en el archivo. */
+export interface ComicInfoXml {
+  series: string | null;
+  number: string | null;
+  count: number | null;
+  volume: number | null;
+  title: string | null;
+  publisher: string | null;
+  year: number | null;
+  writer: string | null;
+  summary: string | null;
+  language_iso: string | null;
+  manga: string | null;
+}
+
 /** Datos caros de un cómic, pedidos en diferido. */
 export interface ComicInfo {
   cover: string | null;
   page_count: number;
   /** Motivo por el que el cómic no se pudo leer, si es el caso. */
   error: string | null;
+  meta: ComicInfoXml | null;
+}
+
+/** Estado de una colección detectada en una carpeta. */
+export interface SeriesInfo {
+  series: string | null;
+  publisher: string | null;
+  total: number | null;
+  owned: number[];
+  missing: number[];
+  tagged: number;
+  untagged: number;
 }
 
 export interface FolderInfo {
