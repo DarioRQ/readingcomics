@@ -1,5 +1,6 @@
 mod archive;
 mod comicinfo;
+mod metron;
 mod commands;
 mod config;
 
@@ -31,6 +32,10 @@ pub fn run() {
             config::get_progress,
             config::set_read,
             config::set_progress,
+            metron::metron_connect,
+            metron::metron_status,
+            metron::metron_disconnect,
+            metron::metron_find_series,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

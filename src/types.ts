@@ -70,3 +70,19 @@ export interface DirListing {
   folders: FolderMeta[];
   comics: ComicMeta[];
 }
+
+/** Estado de la conexión con Metron. */
+export interface MetronStatus {
+  connected: boolean;
+  burst_remaining: number | null;
+  sustained_remaining: number | null;
+}
+
+/** Serie encontrada en Metron. */
+export interface MetronSeries {
+  id: number;
+  name: string;
+  year_began: number | null;
+  issue_count: number | null;
+  publisher: string | null;
+}

@@ -21,6 +21,7 @@ import {
 import { useLazyInfo, clearInfoCache } from "./useLazyInfo";
 import LibraryPicker from "./LibraryPicker";
 import SeriesBanner from "./SeriesBanner";
+import MetronPanel from "./MetronPanel";
 
 /** Nombre de carpeta a partir de su ruta, sirviendo tanto `/` como `\`. */
 function baseName(path: string) {
@@ -165,6 +166,7 @@ export default function Library({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressMap>({});
+  const [metronOpen, setMetronOpen] = useState(false);
 
   // Se recarga al volver de leer un cómic, para reflejar lo recién terminado.
   useEffect(() => {
@@ -300,7 +302,17 @@ export default function Library({
         )}
         {loading && <span className="loading-text">Cargando…</span>}
         {error && <span className="error-text">{error}</span>}
+
+        <button
+          className="ghost-btn toolbar-end"
+          onClick={() => setMetronOpen(true)}
+          title="Conectar con la base de datos Metron"
+        >
+          Metron
+        </button>
       </div>
+
+      {metronOpen && <MetronPanel onClose={() => setMetronOpen(false)} />}
 
       {!loading && !listing && !error && (
         <div className="empty-state">
