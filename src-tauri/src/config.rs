@@ -19,8 +19,12 @@ use tauri::Manager;
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct AppConfig {
-    /// Carpeta de la biblioteca elegida por el usuario.
+    /// Biblioteca abierta ahora mismo.
     pub library_root: Option<String>,
+    /// Bibliotecas guardadas, para poder saltar entre ellas sin volver a
+    /// buscar la carpeta. `serde(default)` mantiene la compatibilidad con los
+    /// config.json de versiones anteriores, que no traían este campo.
+    pub libraries: Vec<String>,
 }
 
 /// Estado de lectura de un cómic concreto.

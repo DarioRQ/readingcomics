@@ -11,7 +11,6 @@ import type {
   ProgressMap,
 } from "./types";
 import {
-  FolderIcon,
   BookIcon,
   ChevronLeftIcon,
   FolderStackIcon,
@@ -20,6 +19,7 @@ import {
   CheckCircleIcon,
 } from "./Icons";
 import { useLazyInfo, clearInfoCache } from "./useLazyInfo";
+import LibraryPicker from "./LibraryPicker";
 
 /** Nombre de carpeta a partir de su ruta, sirviendo tanto `/` como `\`. */
 function baseName(path: string) {
@@ -157,6 +157,7 @@ export default function Library({
   progressVersion: number;
 }) {
   const [root, setRoot] = useState<string | null>(null);
+  const [libraries, setLibraries] = useState<string[]>([]);
   const [listing, setListing] = useState<DirListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -202,12 +203,13 @@ export default function Library({
     }
   }, []);
 
-  // Al arrancar, recuperamos la última biblioteca usada.
+  // Al arrancar, recuperamos la última biblioteca usada y la lista guardada.
   useEffect(() => {
     let cancelled = false;
     invoke<AppConfig>("load_config")
       .then((cfg) => {
         if (cancelled) return;
+        setLibraries(cfg.libraries ?? []);
         if (cfg.library_root) browse(cfg.library_root);
         else setLoading(false);
       })
@@ -217,13 +219,49 @@ export default function Library({
     };
   }, [browse]);
 
-  const pickFolder = async () => {
+  const persist = useCallback((library_root: string | null, libs: string[]) => {
+    invoke("save_config", {
+      config: { library_root, libraries: libs },
+    }).catch(() => {});
+  }, []);
+
+  /** Cambia a una biblioteca ya guardada. */
+  const selectLibrary = useCallback(
+    (dir: string) => {
+      clearInfoCache();
+      browse(dir);
+      persist(dir, libraries);
+    },
+    [browse, libraries, persist],
+  );
+
+  /** Añade una biblioteca nueva desde el selector de carpetas. */
+  const addLibrary = useCallback(async () => {
     const dir = await open({ directory: true, multiple: false });
     if (!dir || Array.isArray(dir)) return;
+    // Sin duplicados: volver a elegir una ya guardada solo la abre.
+    const next = libraries.includes(dir) ? libraries : [...libraries, dir];
+    setLibraries(next);
     clearInfoCache();
     await browse(dir);
-    invoke("save_config", { config: { library_root: dir } }).catch(() => {});
-  };
+    persist(dir, next);
+  }, [browse, libraries, persist]);
+
+  /** Quita una biblioteca de la lista. No toca nada del disco. */
+  const removeLibrary = useCallback(
+    (dir: string) => {
+      const next = libraries.filter((l) => l !== dir);
+      setLibraries(next);
+      // Si se quita la que está abierta, la vista se queda sin biblioteca.
+      const stillOpen = dir === root ? null : root;
+      if (dir === root) {
+        setRoot(null);
+        setListing(null);
+      }
+      persist(stillOpen, next);
+    },
+    [libraries, root, persist],
+  );
 
   const isRoot = listing !== null && listing.parent === null;
   const empty =
@@ -244,14 +282,17 @@ export default function Library({
           </button>
         ) : null}
 
-        <button className="primary-btn with-icon" onClick={pickFolder}>
-          <FolderIcon size={16} />
-          {root ? "Cambiar biblioteca" : "Elegir carpeta de cómics"}
-        </button>
+        <LibraryPicker
+          current={root}
+          libraries={libraries}
+          onSelect={selectLibrary}
+          onAdd={addLibrary}
+          onRemove={removeLibrary}
+        />
 
-        {listing && !loading && (
+        {listing && !loading && !isRoot && (
           <span className="library-path" title={listing.path}>
-            {isRoot ? listing.path : baseName(listing.path)}
+            {baseName(listing.path)}
           </span>
         )}
         {loading && <span className="loading-text">Cargando…</span>}

@@ -1,5 +1,7 @@
 export interface AppConfig {
   library_root: string | null;
+  /** Bibliotecas guardadas, para cambiar entre ellas sin buscar la carpeta. */
+  libraries: string[];
 }
 
 export interface ComicMeta {

@@ -152,6 +152,26 @@ export const FolderStackIcon = (props: IconProps) => (
   </UiIcon>
 );
 
+export const ChevronDownIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <polyline points="6 9 12 15 18 9" />
+  </UiIcon>
+);
+
+export const PlusIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </UiIcon>
+);
+
+export const XIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </UiIcon>
+);
+
 export const ZoomInIcon = (props: IconProps) => (
   <UiIcon {...props}>
     <circle cx="11" cy="11" r="7" />
