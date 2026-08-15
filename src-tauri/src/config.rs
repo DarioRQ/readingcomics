@@ -38,6 +38,32 @@ pub struct ReadState {
 
 pub type ProgressMap = HashMap<String, ReadState>;
 
+/// Lo que se recuerda de una serie tras consultarla en Metron, indexado por la
+/// ruta de la carpeta.
+///
+/// Se guarda para no gastar cuota repitiendo la misma consulta cada vez que se
+/// entra en la carpeta, y para que el estado "colección completa" siga ahí sin
+/// necesidad de conexión.
+#[derive(Serialize, Deserialize, Default, Clone)]
+#[serde(default)]
+pub struct CachedSeries {
+    pub metron_id: Option<i64>,
+    pub name: Option<String>,
+    pub publisher: Option<String>,
+    pub issue_count: Option<u32>,
+    /// Estado según Metron: solo con la serie terminada se puede dar el total
+    /// por definitivo.
+    pub status: Option<String>,
+    /// Marca fija de completada. Una vez que los números cuadran en una serie
+    /// terminada, no hace falta volver a preguntar nunca.
+    pub complete: bool,
+    /// Fecha de la consulta, en segundos desde epoch. El dato de una serie en
+    /// emisión envejece; conviene saber de cuándo es.
+    pub fetched_at: u64,
+}
+
+pub type SeriesMap = HashMap<String, CachedSeries>;
+
 /// Progreso cargado en memoria. Evita releer el fichero en cada marcado y,
 /// sobre todo, evita que dos escrituras seguidas se pisen.
 pub struct Progress(pub Mutex<ProgressMap>);
@@ -87,6 +113,36 @@ pub fn load_config(app: tauri::AppHandle) -> Result<AppConfig, String> {
 #[tauri::command]
 pub fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {
     write_json(&config_file(&app, "config.json")?, &config)
+}
+
+/* ---------- Series consultadas ---------- */
+
+#[tauri::command]
+pub fn get_series_cache(app: tauri::AppHandle) -> Result<SeriesMap, String> {
+    Ok(read_json(&config_file(&app, "series.json")?))
+}
+
+/// Guarda lo averiguado de una serie. Se lee y reescribe el fichero entero
+/// porque son unas pocas decenas de entradas, no una base de datos.
+#[tauri::command]
+pub fn save_series(
+    app: tauri::AppHandle,
+    path: String,
+    series: CachedSeries,
+) -> Result<(), String> {
+    let file = config_file(&app, "series.json")?;
+    let mut map: SeriesMap = read_json(&file);
+    map.insert(path, series);
+    write_json(&file, &map)
+}
+
+/// Olvida lo guardado de una carpeta, para poder volver a consultarla.
+#[tauri::command]
+pub fn forget_series(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let file = config_file(&app, "series.json")?;
+    let mut map: SeriesMap = read_json(&file);
+    map.remove(&path);
+    write_json(&file, &map)
 }
 
 /* ---------- Progreso de lectura ---------- */

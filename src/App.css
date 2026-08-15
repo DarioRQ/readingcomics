@@ -443,7 +443,9 @@ body {
   position: relative;
   aspect-ratio: 2 / 3;
   border-radius: 3px;
-  overflow: hidden;
+  /* Sin `overflow: hidden`: recortaba el desplegable del menú de tres puntos,
+     que se sale de la portada por abajo. El redondeo de la imagen se hace
+     ahora en el propio <img>. */
   background: var(--panel-2);
   display: flex;
   align-items: center;
@@ -471,6 +473,7 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 3px;
 }
 
 .comic-cover-placeholder {
@@ -992,4 +995,10 @@ body {
 
 .modal-narrow {
   max-width: 400px;
+}
+
+/* El menú se abre hacia arriba cuando la tarjeta está al final de la rejilla. */
+.card-menu-list-up {
+  top: auto;
+  bottom: calc(100% + 4px);
 }

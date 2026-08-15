@@ -87,4 +87,20 @@ export interface MetronSeries {
   year_began: number | null;
   issue_count: number | null;
   publisher: string | null;
+  status: string | null;
 }
+
+/** Lo que se recuerda de una serie tras consultarla en Metron. */
+export interface CachedSeries {
+  metron_id: number | null;
+  name: string | null;
+  publisher: string | null;
+  issue_count: number | null;
+  /** Estado según Metron: "Completed", "Ongoing"… */
+  status: string | null;
+  /** Marca fija de colección completa; no requiere volver a consultar. */
+  complete: boolean;
+  fetched_at: number;
+}
+
+export type SeriesCacheMap = Record<string, CachedSeries>;

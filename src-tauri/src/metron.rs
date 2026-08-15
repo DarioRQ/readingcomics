@@ -46,6 +46,11 @@ pub struct MetronSeries {
     pub issue_count: Option<u32>,
     #[serde(default)]
     pub publisher: Option<String>,
+    /// Estado de la serie según Metron ("Completed", "Ongoing"…). Solo si una
+    /// serie está terminada tiene sentido dar su total por definitivo: en una
+    /// serie en emisión el recuento de hoy no es el final.
+    #[serde(default)]
+    pub status: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +82,26 @@ struct SeriesDetail {
     issue_count: Option<u32>,
     #[serde(default)]
     publisher: Option<PublisherRef>,
+    #[serde(default)]
+    status: Option<StatusField>,
+}
+
+/// Metron puede devolver el estado como texto suelto o como objeto con nombre;
+/// se aceptan ambas formas para no romper si cambia.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StatusField {
+    Text(String),
+    Object { name: Option<String> },
+}
+
+impl StatusField {
+    fn into_name(self) -> Option<String> {
+        match self {
+            StatusField::Text(s) => Some(s),
+            StatusField::Object { name } => name,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -229,6 +254,7 @@ pub async fn metron_find_series(name: String) -> Result<Option<MetronSeries>, St
         year_began: detail.year_began.or(first.year_began),
         issue_count: detail.issue_count,
         publisher: detail.publisher.and_then(|p| p.name),
+        status: detail.status.and_then(|s| s.into_name()),
     }))
 }
 

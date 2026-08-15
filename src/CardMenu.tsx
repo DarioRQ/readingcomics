@@ -15,6 +15,7 @@ export interface MenuAction {
  */
 export default function CardMenu({ actions }: { actions: MenuAction[] }) {
   const [open, setOpen] = useState(false);
+  const [up, setUp] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -31,11 +32,24 @@ export default function CardMenu({ actions }: { actions: MenuAction[] }) {
     };
   }, [open]);
 
+  /**
+   * En la última fila de la rejilla no hay sitio por debajo, así que el menú
+   * se abre hacia arriba en vez de empujar el scroll.
+   */
+  const toggle = () => {
+    if (!open && rootRef.current) {
+      const { bottom } = rootRef.current.getBoundingClientRect();
+      const needed = actions.length * 36 + 16;
+      setUp(window.innerHeight - bottom < needed);
+    }
+    setOpen((o) => !o);
+  };
+
   return (
     <div className="card-menu" ref={rootRef} onClick={(e) => e.stopPropagation()}>
       <button
         className="card-menu-trigger"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Más opciones"
@@ -45,7 +59,10 @@ export default function CardMenu({ actions }: { actions: MenuAction[] }) {
       </button>
 
       {open && (
-        <div className="card-menu-list" role="menu">
+        <div
+          className={`card-menu-list${up ? " card-menu-list-up" : ""}`}
+          role="menu"
+        >
           {actions.map((action) => (
             <button
               key={action.label}
