@@ -923,6 +923,83 @@ body {
   cursor: default;
 }
 
+/* Corregir la serie elegida es una salida de emergencia, no la acción
+   principal: se ofrece sin llamar la atención. */
+.series-ask-quiet {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.series-ask-quiet:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Las candidatas y el buscador manual ocupan su propia línea del banner. */
+.series-candidates,
+.series-manual {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+}
+
+.series-candidates {
+  flex-direction: column;
+}
+
+.series-candidate {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.series-candidate:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.series-candidate:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.series-candidate-name {
+  font-weight: 600;
+}
+
+.series-candidate-meta {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.series-manual input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.series-manual input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* Menú de tres puntos de las tarjetas */
 .card-menu {
   position: absolute;

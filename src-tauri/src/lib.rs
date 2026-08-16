@@ -42,6 +42,8 @@ pub fn run() {
             metron::metron_status,
             metron::metron_disconnect,
             metron::metron_find_series,
+            metron::metron_search_series,
+            metron::metron_series_detail,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

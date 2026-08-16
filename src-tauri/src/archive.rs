@@ -86,21 +86,75 @@ pub fn is_comic(path: &Path) -> bool {
     matches!(ext_of(path.to_string_lossy().as_ref()).as_str(), "cbz" | "cbr")
 }
 
+/// Formato real del archivo, que no tiene por qué ser el que dice la extensión.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Format {
+    Zip,
+    Rar,
+    SevenZip,
+    Unknown,
+}
+
+/// Averigua el formato mirando los primeros bytes, no la extensión.
+///
+/// Un `.cbr` que en realidad es un zip es de lo más corriente: mucha gente
+/// reempaqueta el contenido y conserva el nombre. Los lectores de toda la vida
+/// (CDisplayEx, Komga…) abren esos ficheros porque miran el contenido; fiarse
+/// de la extensión era justo el motivo de que aquí salieran como ilegibles.
+pub fn detect(path: &Path) -> Format {
+    use std::io::Read as _;
+
+    let mut head = [0u8; 8];
+    let read = std::fs::File::open(path)
+        .and_then(|mut f| f.read(&mut head))
+        .unwrap_or(0);
+    let head = &head[..read];
+
+    if head.starts_with(b"PK\x03\x04") || head.starts_with(b"PK\x05\x06") {
+        return Format::Zip;
+    }
+    // RAR 4 termina la firma en 0x00; RAR 5, en 0x01 0x00.
+    if head.starts_with(b"Rar!\x1a\x07") {
+        return Format::Rar;
+    }
+    if head.starts_with(b"7z\xbc\xaf\x27\x1c") {
+        return Format::SevenZip;
+    }
+
+    // Sin firma reconocible, la extensión es lo único que queda.
+    match ext_of(path.to_string_lossy().as_ref()).as_str() {
+        "cbz" => Format::Zip,
+        "cbr" => Format::Rar,
+        _ => Format::Unknown,
+    }
+}
+
+/// Explica en castellano por qué un archivo no se puede abrir, para que el
+/// aviso de la biblioteca diga algo más útil que "no se pudo leer".
+fn unsupported(format: Format) -> String {
+    match format {
+        Format::SevenZip => {
+            "el archivo es un 7-Zip, un formato que la aplicación todavía no lee".into()
+        }
+        _ => "el archivo no es un zip ni un rar; puede estar incompleto o corrupto".into(),
+    }
+}
+
 /// Sorted list of image entry names inside the archive.
 pub fn list_pages(path: &Path) -> Result<Vec<String>, String> {
-    match ext_of(path.to_string_lossy().as_ref()).as_str() {
-        "cbz" => list_pages_zip(path),
-        "cbr" => list_pages_rar(path),
-        other => Err(format!("unsupported archive type: {other}")),
+    match detect(path) {
+        Format::Zip => list_pages_zip(path),
+        Format::Rar => list_pages_rar(path),
+        other => Err(unsupported(other)),
     }
 }
 
 /// Raw bytes of a single page, looked up by its entry name.
 pub fn read_page(path: &Path, name: &str) -> Result<Vec<u8>, String> {
-    match ext_of(path.to_string_lossy().as_ref()).as_str() {
-        "cbz" => read_page_zip(path, name),
-        "cbr" => read_page_rar(path, name),
-        other => Err(format!("unsupported archive type: {other}")),
+    match detect(path) {
+        Format::Zip => read_page_zip(path, name),
+        Format::Rar => read_page_rar(path, name),
+        other => Err(unsupported(other)),
     }
 }
 
@@ -125,11 +179,29 @@ fn read_page_zip(path: &Path, name: &str) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+/// Traduce el error del descompresor de rar. Sus mensajes originales son
+/// códigos secos en inglés, y este texto acaba en la tarjeta del cómic.
+fn rar_error(e: unrar::error::UnrarError) -> String {
+    use unrar::error::Code;
+    match e.code {
+        Code::MissingPassword | Code::BadPassword => {
+            "el archivo está protegido con contraseña".into()
+        }
+        Code::BadArchive | Code::UnknownFormat => {
+            "el archivo está dañado o usa una variante de rar que no se reconoce".into()
+        }
+        Code::BadData => "el archivo tiene datos corruptos".into(),
+        Code::EOpen | Code::ERead => "no se pudo leer el archivo del disco".into(),
+        Code::NoMemory => "no hay memoria suficiente para abrir el archivo".into(),
+        _ => format!("el lector de rar falló ({e})"),
+    }
+}
+
 fn list_pages_rar(path: &Path) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     let mut archive = unrar::Archive::new(path)
         .open_for_listing()
-        .map_err(|e| e.to_string())?;
+        .map_err(rar_error)?;
     loop {
         match archive.read_header() {
             Ok(Some(next)) => {
@@ -138,10 +210,10 @@ fn list_pages_rar(path: &Path) -> Result<Vec<String>, String> {
                 if !entry.is_directory() && is_image(&name) {
                     names.push(name);
                 }
-                archive = next.skip().map_err(|e| e.to_string())?;
+                archive = next.skip().map_err(rar_error)?;
             }
             Ok(None) => break,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(rar_error(e)),
         }
     }
     names.sort_by(|a, b| natural_cmp(a, b));
@@ -151,19 +223,19 @@ fn list_pages_rar(path: &Path) -> Result<Vec<String>, String> {
 fn read_page_rar(path: &Path, name: &str) -> Result<Vec<u8>, String> {
     let mut archive = unrar::Archive::new(path)
         .open_for_processing()
-        .map_err(|e| e.to_string())?;
+        .map_err(rar_error)?;
     loop {
         match archive.read_header() {
             Ok(Some(next)) => {
                 let entry_name = next.entry().filename.to_string_lossy().replace('\\', "/");
                 if entry_name == name {
-                    let (data, _rest) = next.read().map_err(|e| e.to_string())?;
+                    let (data, _rest) = next.read().map_err(rar_error)?;
                     return Ok(data);
                 }
-                archive = next.skip().map_err(|e| e.to_string())?;
+                archive = next.skip().map_err(rar_error)?;
             }
             Ok(None) => return Err(format!("page not found: {name}")),
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(rar_error(e)),
         }
     }
 }
@@ -183,9 +255,9 @@ fn is_metadata_entry(name: &str) -> bool {
 
 /// Devuelve el ComicInfo.xml del archivo, si lo trae.
 pub fn read_metadata(path: &Path) -> Option<Vec<u8>> {
-    match ext_of(path.to_string_lossy().as_ref()).as_str() {
-        "cbz" => read_metadata_zip(path),
-        "cbr" => read_metadata_rar(path),
+    match detect(path) {
+        Format::Zip => read_metadata_zip(path),
+        Format::Rar => read_metadata_rar(path),
         _ => None,
     }
 }
@@ -201,6 +273,57 @@ fn read_metadata_zip(path: &Path) -> Option<Vec<u8>> {
     let mut buf = Vec::new();
     entry.read_to_end(&mut buf).ok()?;
     Some(buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    /// Escribe un zip con una página dentro, con el nombre que se le pida.
+    fn write_zip(path: &Path) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        zip.start_file("001.jpg", options).unwrap();
+        zip.write_all(b"no es un jpeg de verdad, pero ocupa sitio")
+            .unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn a_cbr_that_is_really_a_zip_still_opens() {
+        // El caso real: cómics reempaquetados como zip que conservan el nombre
+        // `.cbr`. Fiándose de la extensión salían como ilegibles, mientras que
+        // cualquier otro lector los abre sin rechistar.
+        let dir = tempfile::tempdir().unwrap();
+        let fake = dir.path().join("Doctor Strange 001.cbr");
+        write_zip(&fake);
+
+        assert_eq!(detect(&fake), Format::Zip);
+        assert_eq!(list_pages(&fake).unwrap(), vec!["001.jpg".to_string()]);
+        assert!(!read_page(&fake, "001.jpg").unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_extension_still_decides_when_there_is_no_signature() {
+        let dir = tempfile::tempdir().unwrap();
+        let empty = dir.path().join("vacio.cbz");
+        std::fs::write(&empty, b"").unwrap();
+        assert_eq!(detect(&empty), Format::Zip);
+    }
+
+    #[test]
+    fn other_formats_say_what_they_are() {
+        let dir = tempfile::tempdir().unwrap();
+        let seven = dir.path().join("comic.cbr");
+        std::fs::write(&seven, b"7z\xbc\xaf\x27\x1c\x00\x04").unwrap();
+
+        assert_eq!(detect(&seven), Format::SevenZip);
+        let err = list_pages(&seven).unwrap_err();
+        assert!(err.contains("7-Zip"), "{err}");
+    }
 }
 
 fn read_metadata_rar(path: &Path) -> Option<Vec<u8>> {

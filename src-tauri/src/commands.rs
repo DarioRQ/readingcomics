@@ -49,6 +49,11 @@ pub struct ComicInfo {
 pub struct SeriesInfo {
     pub series: Option<String>,
     pub publisher: Option<String>,
+    /// Volumen y año de la edición, cuando se conocen. No se muestran: sirven
+    /// para distinguir entre los varios volúmenes que comparten cabecera al
+    /// buscar la serie en Metron.
+    pub volume: Option<u32>,
+    pub year: Option<i32>,
     /// Total de números que declara ComicInfo.xml, si lo declara.
     pub total: Option<u32>,
     /// Números que tienes, ordenados.
@@ -539,6 +544,8 @@ pub async fn get_series_info(
         let mut owned: Vec<u32> = Vec::new();
         let mut declared_total: Option<u32> = None;
         let mut publisher: Option<String> = None;
+        let mut volume: Option<u32> = None;
+        let mut year: Option<i32> = None;
         // La serie se decide por mayoría: alguna release suelta puede traer el
         // nombre mal escrito y no debe cambiar el de toda la carpeta.
         let mut series_votes: HashMap<String, usize> = HashMap::new();
@@ -564,6 +571,12 @@ pub async fn get_series_info(
                     }
                     if publisher.is_none() {
                         publisher = m.publisher.clone();
+                    }
+                    if volume.is_none() {
+                        volume = m.volume.filter(|v| *v > 0).map(|v| v as u32);
+                    }
+                    if year.is_none() {
+                        year = m.year.filter(|y| (1900..=2100).contains(y));
                     }
                     // Se queda el total más alto declarado: si una release trae
                     // el dato desactualizado, no debe recortar la serie.
@@ -592,6 +605,8 @@ pub async fn get_series_info(
                     if let Some(sname) = guess.series {
                         *guessed_series.entry(sname).or_default() += 1;
                     }
+                    volume = volume.or(guess.volume);
+                    year = year.or(guess.year);
                 }
             }
         }
@@ -625,14 +640,22 @@ pub async fn get_series_info(
                 .map(|(name, _)| name)
         };
 
+        // Último recurso: el nombre de la carpeta suele ser la serie, pero
+        // viene con adornos ("Doctor Strange Vol 1 (1974)"). Se limpia igual
+        // que los nombres de fichero, y el volumen y el año que traiga se
+        // aprovechan para la búsqueda.
+        let folder = dir
+            .file_name()
+            .map(|n| crate::comicinfo::clean_series_name(&n.to_string_lossy()))
+            .unwrap_or_default();
+
         SeriesInfo {
             series: best(series_votes)
                 .or_else(|| best(guessed_series))
-                // Último recurso: el nombre de la carpeta suele ser la serie.
-                .or_else(|| {
-                    dir.file_name().map(|n| n.to_string_lossy().to_string())
-                }),
+                .or(folder.name),
             publisher,
+            volume: volume.or(folder.volume),
+            year: year.or(folder.year),
             total: declared_total,
             owned,
             missing,

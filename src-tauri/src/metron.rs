@@ -53,14 +53,27 @@ pub struct MetronSeries {
     pub status: Option<String>,
 }
 
+/// Una de las series que devuelve la búsqueda. Es lo que se le enseña al
+/// usuario cuando hay varias candidatas: una misma cabecera suele tener varios
+/// volúmenes y solo el año o el número de volumen los distinguen.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MetronCandidate {
+    pub id: i64,
+    pub name: String,
+    pub year_began: Option<i32>,
+    pub volume: Option<u32>,
+    pub issue_count: Option<u32>,
+}
+
 #[derive(Deserialize)]
 struct SeriesListResponse {
     #[serde(default)]
     results: Vec<SeriesListItem>,
 }
 
-/// La lista devuelve menos campos que el detalle; `issue_count` sale del
-/// detalle, así que aquí solo se recoge lo justo para identificar la serie.
+/// La lista trae ya `issue_count`, `volume` y `year_began`; el detalle solo hace
+/// falta para el estado de la serie y la editorial. El nombre viene en `series`
+/// (y en `name` en las respuestas antiguas), así que se aceptan los dos.
 #[derive(Deserialize)]
 struct SeriesListItem {
     id: i64,
@@ -70,6 +83,25 @@ struct SeriesListItem {
     name: Option<String>,
     #[serde(default)]
     year_began: Option<i32>,
+    #[serde(default)]
+    volume: Option<u32>,
+    #[serde(default)]
+    issue_count: Option<u32>,
+}
+
+impl SeriesListItem {
+    fn into_candidate(self) -> MetronCandidate {
+        MetronCandidate {
+            name: self
+                .series
+                .or(self.name)
+                .unwrap_or_else(|| format!("serie {}", self.id)),
+            id: self.id,
+            year_began: self.year_began,
+            volume: self.volume,
+            issue_count: self.issue_count,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -221,41 +253,185 @@ pub fn metron_disconnect() -> Result<(), String> {
     }
 }
 
-/// Busca una serie por nombre y devuelve la mejor coincidencia con su número
-/// total de ejemplares.
+/* ---------- Búsqueda ---------- */
+
+/// Quita acentos y todo lo que no sea letra o dígito, para poder comparar
+/// nombres que solo se diferencian en la puntuación: `Spider-Man`, `Spiderman`
+/// y `Spider Man` tienen que contar como el mismo.
+fn fold(text: &str) -> String {
+    text.chars()
+        .flat_map(|c| c.to_lowercase())
+        .filter_map(|c| {
+            let c = match c {
+                'á' | 'à' | 'â' | 'ä' | 'ã' => 'a',
+                'é' | 'è' | 'ê' | 'ë' => 'e',
+                'í' | 'ì' | 'î' | 'ï' => 'i',
+                'ó' | 'ò' | 'ô' | 'ö' | 'õ' => 'o',
+                'ú' | 'ù' | 'û' | 'ü' => 'u',
+                'ñ' => 'n',
+                'ç' => 'c',
+                other => other,
+            };
+            c.is_alphanumeric().then_some(c)
+        })
+        .collect()
+}
+
+/// Puntúa cuánto se parece una candidata a lo que se buscaba. Lo que más pesa
+/// es que el nombre coincida entero; el año y el volumen deciden entre los
+/// varios volúmenes de una misma cabecera, que es justo donde se fallaba.
+fn score(c: &MetronCandidate, wanted: &str, year: Option<i32>, volume: Option<u32>) -> i32 {
+    let wanted = fold(wanted);
+    // El nombre de la lista suele venir como "Doctor Strange (1974)".
+    let bare = c.name.split('(').next().unwrap_or(&c.name);
+    let name = fold(bare);
+
+    let mut points = if name == wanted {
+        100
+    } else if name.starts_with(&wanted) || wanted.starts_with(&name) {
+        40
+    } else if name.contains(&wanted) || wanted.contains(&name) {
+        10
+    } else {
+        0
+    };
+
+    if let (Some(a), Some(b)) = (year, c.year_began) {
+        points += if a == b { 30 } else { -10 };
+    }
+    if let (Some(a), Some(b)) = (volume, c.volume) {
+        points += if a == b { 20 } else { -5 };
+    }
+    // Entre dos iguales, mejor la que trae el recuento hecho.
+    if c.issue_count.is_some() {
+        points += 2;
+    }
+    points
+}
+
+async fn search_once(token: &str, query: &str) -> Result<Vec<MetronCandidate>, String> {
+    let (list, _) =
+        get_json::<SeriesListResponse>(token, &format!("{API_BASE}/series/?{query}")).await?;
+    Ok(list.results.into_iter().map(|r| r.into_candidate()).collect())
+}
+
+/// Busca series candidatas, de la consulta más precisa a la más amplia.
 ///
-/// Son dos peticiones: la búsqueda no trae `issue_count`, hay que pedir el
-/// detalle. Se filtra en el servidor con `name=`, como pide su guía de buenas
-/// prácticas, en vez de traerse listados enteros.
+/// Se para en cuanto una devuelve algo, así que lo normal es gastar **una sola
+/// petición**. El orden importa: `q=` busca también en los nombres alternativos
+/// —donde están las ediciones en otros idiomas—, y los filtros de año y volumen
+/// se sueltan antes que el nombre porque son los datos más propensos a no
+/// coincidir con lo que tiene Metron.
 #[tauri::command]
-pub async fn metron_find_series(name: String) -> Result<Option<MetronSeries>, String> {
+pub async fn metron_search_series(
+    name: String,
+    year: Option<i32>,
+    volume: Option<u32>,
+) -> Result<Vec<MetronCandidate>, String> {
     let Some(token) = stored_token() else {
         return Err("no hay ninguna cuenta de Metron conectada".into());
     };
 
-    let query = urlencoding_encode(name.trim());
-    if query.is_empty() {
-        return Ok(None);
+    // El nombre puede llegar tal cual está la carpeta ("Doctor Strange Vol 1"),
+    // y así Metron no encuentra nada: su filtro es por subcadena del nombre, y
+    // el volumen y el año son campos aparte.
+    let clean = crate::comicinfo::clean_series_name(&name);
+    let Some(base) = clean.name.or_else(|| {
+        let t = name.trim();
+        (!t.is_empty()).then(|| t.to_string())
+    }) else {
+        return Ok(Vec::new());
+    };
+    let year = year.or(clean.year);
+    let volume = volume.or(clean.volume);
+
+    let encoded = urlencoding_encode(&base);
+    let mut attempts: Vec<String> = Vec::new();
+
+    if year.is_some() || volume.is_some() {
+        let mut q = format!("q={encoded}");
+        if let Some(y) = year {
+            q.push_str(&format!("&year_began={y}"));
+        }
+        if let Some(v) = volume {
+            q.push_str(&format!("&volume={v}"));
+        }
+        attempts.push(q);
+    }
+    // Sin filtros: el nombre limpio ya suele bastar.
+    attempts.push(format!("q={encoded}"));
+    // Último intento: soltar el subtítulo, que casi nunca está en Metron.
+    if let Some((head, _)) = base.split_once(" - ").or_else(|| base.split_once(": ")) {
+        let head = head.trim();
+        if head.len() >= 3 && head != base {
+            attempts.push(format!("q={}", urlencoding_encode(head)));
+        }
     }
 
-    let (list, _) =
-        get_json::<SeriesListResponse>(&token, &format!("{API_BASE}/series/?name={query}")).await?;
+    for query in attempts {
+        let mut found = search_once(&token, &query).await?;
+        if found.is_empty() {
+            continue;
+        }
+        found.sort_by_key(|c| std::cmp::Reverse(score(c, &base, year, volume)));
+        return Ok(found);
+    }
 
-    let Some(first) = list.results.first() else {
-        return Ok(None);
+    Ok(Vec::new())
+}
+
+/// Datos completos de una serie ya identificada por su id.
+///
+/// Va aparte porque la lista no trae el estado ni la editorial, y el estado es
+/// lo que decide si una colección puede darse por completa para siempre.
+#[tauri::command]
+pub async fn metron_series_detail(id: i64) -> Result<MetronSeries, String> {
+    let Some(token) = stored_token() else {
+        return Err("no hay ninguna cuenta de Metron conectada".into());
     };
 
-    let (detail, _) =
-        get_json::<SeriesDetail>(&token, &format!("{API_BASE}/series/{}/", first.id)).await?;
+    let (detail, _) = get_json::<SeriesDetail>(&token, &format!("{API_BASE}/series/{id}/")).await?;
 
-    Ok(Some(MetronSeries {
+    Ok(MetronSeries {
         id: detail.id,
         name: detail.name,
-        year_began: detail.year_began.or(first.year_began),
+        year_began: detail.year_began,
         issue_count: detail.issue_count,
         publisher: detail.publisher.and_then(|p| p.name),
         status: detail.status.and_then(|s| s.into_name()),
-    }))
+    })
+}
+
+/// Busca una serie y devuelve directamente la mejor coincidencia, ya con su
+/// detalle. Es el camino de un solo clic; si el usuario quiere otra, la
+/// interfaz pide las candidatas con `metron_search_series`.
+#[tauri::command]
+pub async fn metron_find_series(
+    name: String,
+    year: Option<i32>,
+    volume: Option<u32>,
+) -> Result<Option<MetronSeries>, String> {
+    let clean = crate::comicinfo::clean_series_name(&name);
+    let wanted = clean.name.clone().unwrap_or_else(|| name.trim().to_string());
+    let year = year.or(clean.year);
+    let volume = volume.or(clean.volume);
+
+    let found = metron_search_series(name, year, volume).await?;
+    // Que la lista traiga algo no significa que sea lo que se buscaba: si el
+    // servidor ignorase un filtro devolvería series sin relación, y darlas por
+    // buenas sería peor que no encontrar nada. Sin parecido en el nombre, se
+    // deja que elija el usuario.
+    let best = match found.first() {
+        Some(c) if score(c, &wanted, year, volume) >= 10 => c,
+        _ => return Ok(None),
+    };
+
+    let mut detail = metron_series_detail(best.id).await?;
+    // El recuento de la lista vale igual, y así no se pierde si el detalle no
+    // lo trae por lo que sea.
+    detail.issue_count = detail.issue_count.or(best.issue_count);
+    detail.year_began = detail.year_began.or(best.year_began);
+    Ok(Some(detail))
 }
 
 /// Codifica el texto para meterlo en la query. Solo se dejan pasar los
@@ -287,6 +463,42 @@ mod tests {
         // parámetros ni salirse de la query.
         assert_eq!(urlencoding_encode("a&b=c"), "a%26b%3Dc");
         assert_eq!(urlencoding_encode("../../etc"), "..%2F..%2Fetc");
+    }
+
+    fn candidate(id: i64, name: &str, year: Option<i32>, volume: Option<u32>) -> MetronCandidate {
+        MetronCandidate {
+            id,
+            name: name.into(),
+            year_began: year,
+            volume,
+            issue_count: Some(10),
+        }
+    }
+
+    #[test]
+    fn punctuation_and_accents_do_not_break_the_match() {
+        assert_eq!(fold("Spider-Man"), fold("Spider Man"));
+        assert_eq!(fold("Astérix"), fold("asterix"));
+        assert_eq!(fold("Patrulla-X"), "patrullax");
+    }
+
+    #[test]
+    fn the_right_volume_wins() {
+        // El caso que fallaba: varios volúmenes de la misma cabecera, y hay que
+        // quedarse con el que pide la carpeta, no con el primero que llegue.
+        let v1 = candidate(1, "Doctor Strange (1974)", Some(1974), Some(1));
+        let v3 = candidate(3, "Doctor Strange (2015)", Some(2015), Some(4));
+        let otra = candidate(9, "Doctor Strange and the Sorcerers Supreme (2016)", Some(2016), Some(1));
+
+        let by_year = |c: &MetronCandidate| score(c, "Doctor Strange", Some(1974), None);
+        assert!(by_year(&v1) > by_year(&v3));
+
+        let by_volume = |c: &MetronCandidate| score(c, "Doctor Strange", None, Some(4));
+        assert!(by_volume(&v3) > by_volume(&v1));
+
+        // Un nombre más largo que solo contiene al buscado nunca gana al exacto.
+        let plain = |c: &MetronCandidate| score(c, "Doctor Strange", None, None);
+        assert!(plain(&v1) > plain(&otra));
     }
 
     #[test]

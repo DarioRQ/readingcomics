@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.1.7 (sin publicar)
+
+### Corregido
+- **Metron no encontraba las series cuyo nombre lleva el volumen**, como
+  *Doctor Strange Vol 1*. Su buscador compara con el nombre de la serie, y allí
+  el volumen y el año son campos aparte: preguntando por «Doctor Strange Vol 1»
+  no coincidía nada. Ahora el nombre se limpia antes de preguntar (también quita
+  el año, `v01`, `Tomo II` y lo que va entre paréntesis) y el volumen y el año
+  se mandan por su lado.
+- **Cuando hay varios volúmenes de la misma cabecera se elige el que tienes**,
+  usando el año y el volumen, en vez de quedarse con el primero de la lista.
+- **Cómics que otros lectores abren y aquí aparecían como ilegibles.** Muchos
+  `.cbr` son en realidad ficheros zip a los que solo se les cambió la
+  extensión. El formato se reconoce ahora por el contenido del archivo, no por
+  su nombre.
+- Cuando un cómic no se puede abrir, el aviso explica el motivo —protegido con
+  contraseña, dañado, formato no soportado— en lugar de un «no se pudo leer» a
+  secas.
+
+### Añadido
+- **Si la serie que propone Metron no es la tuya, puedes elegir otra**: se
+  muestran las candidatas con su año y su número de ejemplares, y hay un campo
+  para buscar escribiendo el nombre a mano cuando la carpeta no se llama como
+  la serie.
+- La búsqueda también mira los nombres alternativos que guarda Metron, que es
+  donde están los títulos en otros idiomas.
+
 ## v0.1.6
 
 ### Corregido

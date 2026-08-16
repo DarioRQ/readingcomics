@@ -42,6 +42,10 @@ export interface ComicInfo {
 export interface SeriesInfo {
   series: string | null;
   publisher: string | null;
+  /** Volumen y año de la edición: no se muestran, distinguen volúmenes al
+   * buscar en Metron. */
+  volume: number | null;
+  year: number | null;
   total: number | null;
   owned: number[];
   missing: number[];
@@ -88,6 +92,15 @@ export interface MetronSeries {
   issue_count: number | null;
   publisher: string | null;
   status: string | null;
+}
+
+/** Una de las series que devuelve la búsqueda, para elegir entre varias. */
+export interface MetronCandidate {
+  id: number;
+  name: string;
+  year_began: number | null;
+  volume: number | null;
+  issue_count: number | null;
 }
 
 /** Lo que se recuerda de una serie tras consultarla en Metron. */

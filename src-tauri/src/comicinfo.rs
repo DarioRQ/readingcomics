@@ -215,10 +215,154 @@ mod integration {
 pub struct NameGuess {
     pub series: Option<String>,
     pub number: Option<u32>,
+    /// Volumen, si el nombre lo trae (`v01`, `Vol. 2`, `Tomo 3`).
+    pub volume: Option<u32>,
+    /// Año entre paréntesis, si lo hay: `Doctor Strange (1974)`.
+    pub year: Option<i32>,
 }
 
 fn looks_like_year(n: u32, digits: usize) -> bool {
     digits == 4 && (1900..=2100).contains(&n)
+}
+
+/// Nombre de serie limpio, con el volumen y el año separados.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct CleanName {
+    pub name: Option<String>,
+    pub volume: Option<u32>,
+    pub year: Option<i32>,
+}
+
+/// Palabras que introducen un volumen. `v` suelto se trata aparte porque solo
+/// cuenta pegado a dígitos (`v01`): si no, "V de Vendetta" perdería la V.
+const VOLUME_WORDS: [&str; 4] = ["vol", "volume", "volumen", "tomo"];
+
+fn roman_to_u32(s: &str) -> Option<u32> {
+    match s {
+        "i" => Some(1),
+        "ii" => Some(2),
+        "iii" => Some(3),
+        "iv" => Some(4),
+        "v" => Some(5),
+        "vi" => Some(6),
+        "vii" => Some(7),
+        "viii" => Some(8),
+        "ix" => Some(9),
+        "x" => Some(10),
+        _ => None,
+    }
+}
+
+/// Separa el nombre de la serie de los adornos que no forman parte de él.
+///
+/// Existe porque el buscador de Metron filtra por subcadena: `Doctor Strange
+/// Vol 1` no coincide con ninguna serie, porque en su base de datos la serie se
+/// llama `Doctor Strange` y el volumen es un campo aparte. Lo mismo con el año.
+/// Devolverlos por separado permite además usarlos para elegir entre volúmenes.
+pub fn clean_series_name(raw: &str) -> CleanName {
+    let mut year = None;
+
+    // Lo que va entre paréntesis o corchetes no es el nombre: años, `[Digital]`,
+    // el idioma, el grupo que lo publicó… De ahí solo interesa el año.
+    let mut cleaned = String::with_capacity(raw.len());
+    let mut group = String::new();
+    let mut depth = 0i32;
+    for c in raw.chars() {
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                group.clear();
+            }
+            ')' | ']' | '}' => {
+                depth = (depth - 1).max(0);
+                if year.is_none() {
+                    let digits: String = group.chars().filter(|c| c.is_ascii_digit()).collect();
+                    if digits.len() == 4 {
+                        if let Ok(n) = digits.parse::<i32>() {
+                            if (1900..=2100).contains(&n) {
+                                year = Some(n);
+                            }
+                        }
+                    }
+                }
+                cleaned.push(' ');
+            }
+            _ if depth > 0 => group.push(c),
+            _ => cleaned.push(c),
+        }
+    }
+
+    let tokens: Vec<&str> = cleaned
+        .split(|c: char| c.is_whitespace() || c == '_')
+        .filter(|t| !t.is_empty())
+        .collect();
+
+    let mut volume = None;
+    let mut kept: Vec<&str> = Vec::new();
+    let mut i = 0;
+    while i < tokens.len() {
+        let tok = tokens[i];
+        let lower = tok.to_lowercase();
+        let word = lower.trim_end_matches(['.', ',', ':']);
+
+        // `Vol 1`, `Vol. 2`, `Volumen 3`, `Tomo II`: la palabra y lo que la sigue.
+        if VOLUME_WORDS.contains(&word) {
+            if let Some(next) = tokens.get(i + 1) {
+                let n = next.trim_start_matches('#').trim_end_matches(['.', ',']);
+                let parsed = n
+                    .parse::<u32>()
+                    .ok()
+                    .or_else(|| roman_to_u32(&n.to_lowercase()));
+                if let Some(v) = parsed {
+                    volume = volume.or(Some(v));
+                    i += 2;
+                    continue;
+                }
+            }
+            // `Vol` sin número detrás no dice nada; se descarta igualmente.
+            i += 1;
+            continue;
+        }
+
+        // `v01`, `V2`: solo si es la letra pegada a dígitos y nada más.
+        if let Some(rest) = lower.strip_prefix('v') {
+            let rest = rest.trim_start_matches('.');
+            if !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()) {
+                if let Ok(v) = rest.parse::<u32>() {
+                    volume = volume.or(Some(v));
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+
+        // Un año suelto al final tampoco es parte del nombre.
+        if tok.len() == 4 && tok.chars().all(|c| c.is_ascii_digit()) {
+            if let Ok(n) = tok.parse::<i32>() {
+                if (1900..=2100).contains(&n) {
+                    year = year.or(Some(n));
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+
+        kept.push(tok);
+        i += 1;
+    }
+
+    let name = kept
+        .join(" ")
+        .trim()
+        .trim_end_matches(['-', '–', '—', '.', ',', ':', '_'])
+        .trim()
+        .to_string();
+
+    CleanName {
+        name: if name.is_empty() { None } else { Some(name) },
+        volume,
+        year,
+    }
 }
 
 /// Intenta sacar serie y número de algo tipo `Saga 003 (2013)`.
@@ -282,25 +426,21 @@ pub fn guess_from_filename(stem: &str) -> NameGuess {
         number_at = Some(i);
     }
 
-    // 4. La serie es lo de delante, sin separadores colgando.
-    let series = match number_at {
-        Some(0) | None => None,
-        Some(i) => {
-            let name = tokens[..i]
-                .join(" ")
-                .trim()
-                .trim_end_matches(['-', '–', '—', '.', ','])
-                .trim()
-                .to_string();
-            if name.is_empty() {
-                None
-            } else {
-                Some(name)
-            }
-        }
+    // 4. La serie es lo de delante, ya sin volumen, año ni separadores colgando.
+    //    El volumen se guarda aparte en vez de tirarse: sirve para distinguir
+    //    entre los varios volúmenes que suele tener una misma cabecera.
+    let whole = clean_series_name(stem);
+    let front = match number_at {
+        Some(0) | None => CleanName::default(),
+        Some(i) => clean_series_name(&tokens[..i].join(" ")),
     };
 
-    NameGuess { series, number }
+    NameGuess {
+        series: front.name,
+        number,
+        volume: front.volume.or(whole.volume),
+        year: front.year.or(whole.year),
+    }
 }
 
 #[cfg(test)]
@@ -328,8 +468,50 @@ mod name_tests {
     }
 
     #[test]
-    fn ignores_volume_markers() {
-        assert_eq!(guess("Saga v01 003"), (Some("Saga v01".into()), Some(3)));
+    fn volume_markers_leave_the_series_name() {
+        // El volumen no forma parte del nombre: si se queda pegado, buscar la
+        // serie en Metron no encuentra nada, porque allí el volumen es un campo
+        // aparte.
+        let g = guess_from_filename("Saga v01 003");
+        assert_eq!(g.series.as_deref(), Some("Saga"));
+        assert_eq!(g.number, Some(3));
+        assert_eq!(g.volume, Some(1));
+    }
+
+    #[test]
+    fn keeps_the_year_of_the_edition() {
+        let g = guess_from_filename("Doctor Strange Vol 1 003 (1974)");
+        assert_eq!(g.series.as_deref(), Some("Doctor Strange"));
+        assert_eq!(g.number, Some(3));
+        assert_eq!(g.volume, Some(1));
+        assert_eq!(g.year, Some(1974));
+    }
+
+    #[test]
+    fn cleans_the_names_that_metron_never_matched() {
+        let cases = [
+            ("Doctor Strange Vol 1", "Doctor Strange", Some(1), None),
+            ("Doctor Strange v01 (1974)", "Doctor Strange", Some(1), Some(1974)),
+            ("Doctor Strange, Vol. 2", "Doctor Strange", Some(2), None),
+            ("Hellblazer Volume 3 [Digital]", "Hellblazer", Some(3), None),
+            ("Patrulla-X Tomo II", "Patrulla-X", Some(2), None),
+            ("Watchmen (1986)", "Watchmen", None, Some(1986)),
+            ("Saga", "Saga", None, None),
+        ];
+        for (raw, name, volume, year) in cases {
+            let c = clean_series_name(raw);
+            assert_eq!(c.name.as_deref(), Some(name), "nombre de {raw:?}");
+            assert_eq!(c.volume, volume, "volumen de {raw:?}");
+            assert_eq!(c.year, year, "año de {raw:?}");
+        }
+    }
+
+    #[test]
+    fn a_lone_v_is_not_a_volume() {
+        // "V de Vendetta" no puede quedarse en "de Vendetta".
+        let c = clean_series_name("V de Vendetta");
+        assert_eq!(c.name.as_deref(), Some("V de Vendetta"));
+        assert_eq!(c.volume, None);
     }
 
     #[test]
