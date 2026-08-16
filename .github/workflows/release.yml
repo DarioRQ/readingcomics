@@ -20,7 +20,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -32,13 +32,18 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: pnpm/action-setup@v4
+      # Sin esto cada release recompila Rust desde cero (~11 min en Windows).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
 
       - run: pnpm install
