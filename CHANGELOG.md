@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.7 (sin publicar)
+## v0.1.7
 
 ### Añadido
 - **Modos de ajuste en el lector**: página entera, ajustar al ancho, ajustar al
