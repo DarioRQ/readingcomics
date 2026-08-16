@@ -237,3 +237,92 @@ export const ImageIcon = (props: IconProps) => (
     <path d="m14 15.5 1.8-1.8a2 2 0 0 1 2.8 0l1.9 1.9" />
   </UiIcon>
 );
+
+/* ---------- Lector ---------- */
+
+/** Ajustar la página entera dentro de la ventana. */
+export const FitPageIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="4" y="3" width="16" height="18" rx="1" />
+    <polyline points="8 8 8 6 10 6" />
+    <polyline points="16 16 16 18 14 18" />
+  </UiIcon>
+);
+
+/** Ajustar al ancho. */
+export const FitWidthIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="4" y="6" width="16" height="12" rx="1" />
+    <polyline points="8 10 6 12 8 14" />
+    <polyline points="16 10 18 12 16 14" />
+  </UiIcon>
+);
+
+/** Ajustar al alto. */
+export const FitHeightIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="6" y="4" width="12" height="16" rx="1" />
+    <polyline points="10 8 12 6 14 8" />
+    <polyline points="10 16 12 18 14 16" />
+  </UiIcon>
+);
+
+/** Tamaño original, sin escalar. */
+export const OriginalSizeIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="1" />
+    <path d="M8 15V9l-1.6 1.2" />
+    <path d="M13 15h3.6" />
+    <path d="M15.4 15V9" />
+  </UiIcon>
+);
+
+/** Dos páginas a la vez, como en el papel. */
+export const SpreadIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="3" y="4" width="8" height="16" rx="1" />
+    <rect x="13" y="4" width="8" height="16" rx="1" />
+  </UiIcon>
+);
+
+/** Sentido de lectura de derecha a izquierda. */
+export const MangaIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <line x1="20" y1="12" x2="5" y2="12" />
+    <polyline points="10 7 5 12 10 17" />
+  </UiIcon>
+);
+
+export const RotateIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+    <polyline points="20 4 20 9 15 9" />
+  </UiIcon>
+);
+
+/** Tira de miniaturas. */
+export const ThumbsIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <rect x="3" y="7" width="5" height="10" rx="1" />
+    <rect x="9.5" y="7" width="5" height="10" rx="1" />
+    <rect x="16" y="7" width="5" height="10" rx="1" />
+  </UiIcon>
+);
+
+export const FullscreenIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <polyline points="4 9 4 4 9 4" />
+    <polyline points="15 4 20 4 20 9" />
+    <polyline points="20 15 20 20 15 20" />
+    <polyline points="9 20 4 20 4 15" />
+  </UiIcon>
+);
+
+export const ExitFullscreenIcon = (props: IconProps) => (
+  <UiIcon {...props}>
+    <polyline points="9 4 9 9 4 9" />
+    <polyline points="20 9 15 9 15 4" />
+    <polyline points="15 20 15 15 20 15" />
+    <polyline points="4 15 9 15 9 20" />
+  </UiIcon>
+);

@@ -2,6 +2,7 @@ use crate::archive;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
@@ -718,6 +719,27 @@ pub fn set_folder_cover(root: String, path: String, image: String) -> Result<(),
 #[tauri::command]
 pub fn open_comic(path: String) -> Result<Vec<String>, String> {
     archive::list_pages(Path::new(&path))
+}
+
+/// Miniaturas de varias páginas, para la tira del lector.
+///
+/// Se piden por lotes —solo las que están a la vista— y el archivo se abre una
+/// sola vez para todas. Devuelve un mapa de nombre de página a imagen, sin las
+/// que no se hayan podido leer.
+#[tauri::command]
+pub async fn get_page_thumbs(
+    path: String,
+    names: Vec<String>,
+) -> Result<HashMap<String, String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let pages = archive::read_pages(Path::new(&path), &names)?;
+        Ok(pages
+            .into_iter()
+            .filter_map(|(name, raw)| Some((name, to_data_uri(&make_thumb(&raw)?))))
+            .collect())
+    })
+    .await
+    .map_err(|e| format!("fallo al generar las miniaturas: {e}"))?
 }
 
 #[tauri::command]

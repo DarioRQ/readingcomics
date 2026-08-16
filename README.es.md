@@ -76,3 +76,10 @@ Nota: la lectura de `.cbr` usa el crate [`unrar`](https://crates.io/crates/unrar
 que compila internamente el código fuente de UnRAR (licencia UnRAR, freeware,
 no OSI-open-source pero de uso libre para extracción). El resto del proyecto
 es MIT.
+
+Las tipografías que se distribuyen con la aplicación —
+[Archivo](https://github.com/Omnibus-Type/Archivo) y
+[Fraunces](https://github.com/undercasetype/Fraunces)— son SIL Open Font
+License 1.1, con el texto de la licencia junto a los ficheros en
+`src/assets/fonts/`. Van dentro del paquete y no en un CDN, para que el lector
+funcione sin conexión y no le pida nada a nadie al arrancar.

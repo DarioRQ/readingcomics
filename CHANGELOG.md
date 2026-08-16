@@ -2,7 +2,30 @@
 
 ## v0.1.7 (sin publicar)
 
+### Añadido
+- **Modos de ajuste en el lector**: página entera, ajustar al ancho, ajustar al
+  alto y tamaño original, con teclas `B`, `W`, `H` y `O`. El zoom sigue estando
+  encima de cualquiera de ellos.
+- **Doble página**, para leer como en el papel, con la portada sola (que es lo
+  que hace que el resto del cómic quede emparejado como toca) y **sentido de
+  lectura de derecha a izquierda** para manga, que además invierte las flechas
+  y las zonas de clic.
+- **Girar la página** 90° y 180°, para las páginas escaneadas de lado o las
+  dobles. Con `R`; con `Mayús` gira al revés.
+- **Pantalla completa** con `F`, que oculta también la barra de la aplicación.
+- **Ir a una página** escribiendo su número (`G`), e `Inicio` y `Fin` para la
+  primera y la última.
+- **Tira de miniaturas** (`T`) para moverse de un vistazo. Solo genera las que
+  se ven, y las pide por lotes: abrir la tira de un cómic de 200 páginas no
+  decodifica 200 imágenes ni abre el archivo 200 veces.
+- Lo que elijas —ajuste, doble página, sentido de lectura, miniaturas— se
+  recuerda para la próxima vez. El giro no, que es un apaño de una página
+  concreta y no una preferencia.
+
 ### Corregido
+- **El lector no reanudaba por donde ibas.** La página se guardaba desde la
+  v0.1.2, pero al abrir el cómic nadie la leía y siempre empezaba por la
+  primera. Un cómic ya terminado sigue abriéndose por el principio.
 - **Metron no encontraba las series cuyo nombre lleva el volumen**, como
   *Doctor Strange Vol 1*. Su buscador compara con el nombre de la serie, y allí
   el volumen y el año son campos aparte: preguntando por «Doctor Strange Vol 1»
@@ -26,6 +49,13 @@
   la serie.
 - La búsqueda también mira los nombres alternativos que guarda Metron, que es
   donde están los títulos en otros idiomas.
+
+### Cambiado
+- **Tipografía propia**: los títulos van en Fraunces, una serifa de libro
+  impreso, y el resto de la interfaz en Archivo. Las dos vienen dentro de la
+  aplicación, así que se ven igual en cualquier equipo y no se descarga nada al
+  arrancar. Antes se usaban las fuentes que trajera el sistema, que en Windows
+  acababan siendo siempre las mismas.
 
 ## v0.1.6
 

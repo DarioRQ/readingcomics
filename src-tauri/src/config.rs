@@ -27,6 +27,40 @@ pub struct AppConfig {
     pub libraries: Vec<String>,
 }
 
+/// Cómo quiere el usuario ver las páginas. Va en su propio fichero, igual que
+/// el progreso: se toca al vuelo mientras se lee y no conviene reescribir por
+/// ello el config con las bibliotecas.
+///
+/// La rotación no está aquí a propósito: es un apaño para una página concreta
+/// mal escaneada, no una preferencia que deba sobrevivir al cómic.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ReaderPrefs {
+    /// `page`, `width`, `height` u `original`.
+    pub fit: String,
+    /// Dos páginas a la vez, como en el papel.
+    pub spread: bool,
+    /// Con doble página, la portada va sola: si no, todo el cómic queda
+    /// emparejado al revés.
+    pub cover_alone: bool,
+    /// Lectura de derecha a izquierda.
+    pub manga: bool,
+    /// Tira de miniaturas visible.
+    pub thumbs: bool,
+}
+
+impl Default for ReaderPrefs {
+    fn default() -> Self {
+        Self {
+            fit: "page".into(),
+            spread: false,
+            cover_alone: true,
+            manga: false,
+            thumbs: false,
+        }
+    }
+}
+
 /// Estado de lectura de un cómic concreto.
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(default)]
@@ -113,6 +147,18 @@ pub fn load_config(app: tauri::AppHandle) -> Result<AppConfig, String> {
 #[tauri::command]
 pub fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {
     write_json(&config_file(&app, "config.json")?, &config)
+}
+
+/* ---------- Preferencias del lector ---------- */
+
+#[tauri::command]
+pub fn load_reader_prefs(app: tauri::AppHandle) -> Result<ReaderPrefs, String> {
+    Ok(read_json(&config_file(&app, "reader.json")?))
+}
+
+#[tauri::command]
+pub fn save_reader_prefs(app: tauri::AppHandle, prefs: ReaderPrefs) -> Result<(), String> {
+    write_json(&config_file(&app, "reader.json")?, &prefs)
 }
 
 /* ---------- Series consultadas ---------- */

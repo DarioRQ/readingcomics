@@ -38,6 +38,20 @@ export interface ComicInfo {
   meta: ComicInfoXml | null;
 }
 
+/** Cómo se encaja la página en la ventana. */
+export type FitMode = "page" | "width" | "height" | "original";
+
+/** Preferencias de lectura, guardadas entre sesiones. */
+export interface ReaderPrefs {
+  fit: FitMode;
+  spread: boolean;
+  /** Con doble página, la portada va sola. */
+  cover_alone: boolean;
+  /** Lectura de derecha a izquierda. */
+  manga: boolean;
+  thumbs: boolean;
+}
+
 /** Estado de una colección detectada en una carpeta. */
 export interface SeriesInfo {
   series: string | null;

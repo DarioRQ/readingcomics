@@ -158,6 +158,54 @@ pub fn read_page(path: &Path, name: &str) -> Result<Vec<u8>, String> {
     }
 }
 
+/// Varias páginas de una vez, abriendo el archivo **una sola vez**.
+///
+/// Existe por la tira de miniaturas: pedirlas de una en una con `read_page`
+/// significaría reabrir el archivo por cada una, y en CBR cada apertura obliga
+/// a recorrer las cabeceras hasta dar con la entrada. Se devuelve lo que se
+/// haya podido leer; las que fallen simplemente no salen.
+pub fn read_pages(path: &Path, names: &[String]) -> Result<Vec<(String, Vec<u8>)>, String> {
+    match detect(path) {
+        Format::Zip => {
+            let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+            let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+            let mut out = Vec::with_capacity(names.len());
+            for name in names {
+                let Ok(mut entry) = archive.by_name(name) else {
+                    continue;
+                };
+                let mut buf = Vec::new();
+                if entry.read_to_end(&mut buf).is_ok() {
+                    out.push((name.clone(), buf));
+                }
+            }
+            Ok(out)
+        }
+        Format::Rar => {
+            // Una sola pasada secuencial: el rar no tiene acceso directo.
+            let mut out = Vec::with_capacity(names.len());
+            let mut archive = unrar::Archive::new(path)
+                .open_for_processing()
+                .map_err(rar_error)?;
+            while let Ok(Some(next)) = archive.read_header() {
+                let entry_name = next.entry().filename.to_string_lossy().replace('\\', "/");
+                if names.contains(&entry_name) {
+                    let (data, rest) = next.read().map_err(rar_error)?;
+                    out.push((entry_name, data));
+                    archive = rest;
+                } else {
+                    archive = next.skip().map_err(rar_error)?;
+                }
+                if out.len() == names.len() {
+                    break;
+                }
+            }
+            Ok(out)
+        }
+        other => Err(unsupported(other)),
+    }
+}
+
 fn list_pages_zip(path: &Path) -> Result<Vec<String>, String> {
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;

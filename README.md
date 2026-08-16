@@ -111,3 +111,9 @@ MIT — see [LICENSE](./LICENSE).
 `.cbr` support uses the [`unrar`](https://crates.io/crates/unrar) crate, which
 builds the UnRAR source (freeware licence, free to use for extraction, not
 OSI-approved). Everything else is MIT.
+
+The bundled typefaces — [Archivo](https://github.com/Omnibus-Type/Archivo) and
+[Fraunces](https://github.com/undercasetype/Fraunces) — are under the SIL Open
+Font Licence 1.1; their licence texts ship next to the font files in
+`src/assets/fonts/`. They are packaged with the app rather than fetched from a
+CDN, so the reader keeps working offline and asks nobody for anything on start.
