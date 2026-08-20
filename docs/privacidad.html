@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de privacidad — readingcomics</title>
+<style>
+  :root {
+    --tinta: #1a1726;
+    --papel: #ffffff;
+    --suave: #5b5470;
+    --acento: #7c5cff;
+    --linea: #e6e2f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --tinta: #ece9f5; --papel: #14121c; --suave: #a49cc0; --linea: #2a2540; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--papel); color: var(--tinta);
+    font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 48px 20px 96px;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .fecha { color: var(--suave); font-size: 0.95rem; margin: 0 0 40px; }
+  h2 {
+    font-size: 1.15rem; margin: 40px 0 10px; padding-top: 20px;
+    border-top: 1px solid var(--linea);
+  }
+  p, li { color: var(--tinta); }
+  ul { padding-left: 1.2em; }
+  li { margin: 6px 0; }
+  a { color: var(--acento); }
+  .destacado {
+    border-left: 3px solid var(--acento); padding: 2px 0 2px 16px; margin: 24px 0;
+  }
+  footer { margin-top: 56px; color: var(--suave); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Política de privacidad</h1>
+<p class="fecha">readingcomics (Android) · <code>com.dariorq.readingcomics</code> · 20 de agosto de 2026</p>
+
+<div class="destacado">
+<p><strong>En corto: readingcomics no recoge ningún dato tuyo.</strong> No hay
+cuentas, ni anuncios, ni analítica, ni informes de fallos, ni servidores míos a
+los que enviar nada. Tus cómics y tu lectura se quedan en tu dispositivo.</p>
+</div>
+
+<h2>Qué datos recojo</h2>
+<p>Ninguno. La aplicación no tiene servidor propio ni recoge, transmite ni
+almacena información personal fuera de tu dispositivo. Tampoco incluye
+bibliotecas de terceros de publicidad, analítica o seguimiento.</p>
+
+<h2>Qué se guarda en tu dispositivo</h2>
+<p>Todo lo siguiente se guarda solo en el almacenamiento privado de la
+aplicación, en tu dispositivo, y nunca sale de él:</p>
+<ul>
+  <li>Las carpetas de cómics que eliges abrir, y el permiso que Android concede
+      sobre ellas.</li>
+  <li>Por dónde vas leyendo cada cómic y tus preferencias de lectura.</li>
+  <li>Una caché de portadas y datos de los ficheros, para que la biblioteca
+      cargue rápido.</li>
+</ul>
+<p>Se borra todo al desinstalar la aplicación, o desde
+<em>Ajustes → Aplicaciones → readingcomics → Almacenamiento → Borrar datos</em>.</p>
+
+<h2>Tus ficheros de cómic</h2>
+<p>La aplicación lee los ficheros de las carpetas que tú eliges, y solo de esas.
+Los abre para mostrarlos; no los copia, no los modifica y no los envía a ninguna
+parte. Los ficheros CBR se copian temporalmente a la caché privada de la
+aplicación porque el descompresor necesita una ruta real, y esa copia se borra
+sola.</p>
+
+<h2>Metron: una consulta opcional a un servicio ajeno</h2>
+<p>readingcomics puede consultar <a href="https://metron.cloud" rel="noopener">Metron</a>,
+una base de datos comunitaria de cómics, para saber cuántos números tiene una
+serie. Esto es <strong>opcional y bajo demanda</strong>:</p>
+<ul>
+  <li>Hace falta que introduzcas tu propio token de Metron, que tú creas en su
+      web. Sin token, la aplicación no hace ni una sola petición de red.</li>
+  <li>Aun con token, solo consulta cuando pulsas el botón. Nunca de fondo.</li>
+  <li>Lo que se envía es el nombre de la serie (y su año o volumen si se
+      conocen), nada más. No se envía tu lista de ficheros, ni tus rutas, ni
+      ningún identificador tuyo o del dispositivo.</li>
+  <li>Tu token se guarda en el almacén seguro del sistema, nunca en un fichero
+      de texto plano, y solo se manda a Metron para autenticar esa consulta.</li>
+</ul>
+<p>Lo que Metron haga con esas peticiones se rige por su propia política de
+privacidad, no por esta.</p>
+
+<h2>Permisos</h2>
+<ul>
+  <li><strong>Internet</strong>: únicamente para la consulta a Metron descrita
+      arriba. Si no usas Metron, no se abre ninguna conexión.</li>
+  <li><strong>Acceso a una carpeta</strong>: mediante el selector del propio
+      Android, que te deja elegir exactamente qué carpeta compartir con la
+      aplicación. Puedes retirarlo cuando quieras desde los ajustes del
+      sistema.</li>
+</ul>
+
+<h2>Menores</h2>
+<p>La aplicación no está dirigida a menores de 13 años y no recoge datos de
+nadie, con independencia de su edad.</p>
+
+<h2>Cambios en esta política</h2>
+<p>Si en el futuro la aplicación empieza a tratar datos de otra forma —por
+ejemplo, al añadir compras dentro de la aplicación, que Google Play gestiona por
+su cuenta— esta página se actualizará antes de que ese cambio llegue a una
+versión publicada, con su fecha.</p>
+
+<h2>Contacto</h2>
+<p>Dudas sobre privacidad: <a href="mailto:readingcomicsapp@gmail.com">readingcomicsapp@gmail.com</a>.</p>
+
+<footer>readingcomics · Desarrollado por DarioRQ</footer>
+
+</main>
+</body>
+</html>
